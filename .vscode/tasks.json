@@ -1,0 +1,78 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Cpp: gccCompile[DBG]",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-g",
+                "${fileBasename}",
+                "-o",
+                "${fileBasename}.exe",
+                "-Wall",
+                "-Wextra",
+                "-Werror", 
+                "-pedantic",
+                "-Wredundant-decls",
+                "-std=c++14",
+            ],
+            "problemMatcher": [],
+        },
+        
+        {
+            "label": "Cpp: gccCompile[REL]",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "${fileBasename}",
+                "-o",
+                "${fileBasename}.exe",
+                "-Wall",
+                "-Wextra",
+                "-Werror", 
+                "-pedantic",
+                "-Wredundant-decls",
+                "-std=c++14",
+                "-O2"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+
+        {
+            "label": "Cpp: VCCompile[DBG]",
+            "type": "shell",
+            "command": "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\VC\\Tools\\MSVC\\14.24.28314\\bin\\Hostx64\\x64\\cl.exe\"",
+            "args": ["-EHsc", "-Zi", "-Fe:", "${fileBasename}.exe", "${fileBasename}"],
+            "group": {
+              "kind": "build",
+              "isDefault": true
+            },
+            "presentation": {
+              "reveal": "always"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        
+        {
+            "label": "Cpp: VCCompile[REL]",
+            "type": "shell",
+            "command": "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\VC\\Tools\\MSVC\\14.24.28314\\bin\\Hostx64\\x64\\cl.exe\"",
+            "args": ["-EHsc", "-O2", "-Fe:", "${fileBasename}.exe", "${fileBasename}"],
+            "group": {
+              "kind": "build",
+              "isDefault": true
+            },
+            "presentation": {
+              "reveal": "always"
+            },
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}

@@ -1,0 +1,52 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Cpp: gcc-Dbg",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/${fileBasename}.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "logging": {"trace": false, "traceResponse": false},
+            "environment": [],
+            "preLaunchTask": "Cpp: gccCompile[DBG]",//"CMake Build",
+            "externalConsole": false,
+            "miDebuggerPath": "c:/MinGW/bin/gdb.exe",
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Cpp: gcc-Run",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/${fileBasename}.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Cpp: gccCompile[REL]",//"CMake Build",
+        },
+        {
+            "name": "Cpp: Vc-Dbg",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/${fileBasename}.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Cpp: VCCompile[DBG]",
+            "environment": [],
+            "externalConsole": false
+          }
+        
+    ]
+}
