@@ -64,6 +64,7 @@ T vec_sum_n(const std::vector<T>& vec,
   return result;
 }
 
+
 template<typename T, typename U>
 void vec_divide_n(std::vector<T>& vec, const U constant, const std::size_t num_elems_to_div)
 {
@@ -72,6 +73,7 @@ void vec_divide_n(std::vector<T>& vec, const U constant, const std::size_t num_e
     vec[iter] /= constant;
   }
 }
+
 
 template <typename T>
 std::vector<T> arange(const T start, const T end, const T step)
@@ -87,12 +89,33 @@ std::vector<T> arange(const T start, const T end, const T step)
 }
 
 
+template<typename T>
+void add_range(std::vector<T>& vec, const T start, const T end, const T step)
+{
+  vec.reserve(vec.size() + (end - start)/step);
+  for (T iter = start; iter <= end; iter += step)
+  {  vec.push_back(iter);  }
+
+  vec.shrink_to_fit();
+}
+
+
 std::ostream& operator<<(std::ostream& os, 
                          const factor& factor_to_output)
 {
   os << "vars:       "  << factor_to_output.variables << '\n';
   os << "cardinality: " << factor_to_output.cardinals << '\n';
   os << "Cpd:         " << factor_to_output.values    << '\n';
+  return os;
+}
+
+
+std::ostream& operator<<(std::ostream& os, 
+                         const factor * const factor_to_output)
+{
+  os << "vars:       "  << factor_to_output->variables << '\n';
+  os << "cardinality: " << factor_to_output->cardinals << '\n';
+  os << "Cpd:         " << factor_to_output->values    << '\n';
   return os;
 }
 

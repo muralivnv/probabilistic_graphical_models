@@ -42,7 +42,7 @@ int main()
   std::cout << "marginalized_result: \n" << sample_factor4_marginal;
   
 
-  std::vector<factor> factor_vec {sample_factor1, sample_factor2, sample_factor3};
+  std::vector<factor*> factor_vec {&sample_factor1, &sample_factor2, &sample_factor3};
   
   /* Compute Joint probability */
   

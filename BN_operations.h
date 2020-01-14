@@ -154,7 +154,7 @@ void get_state_indices(const factor& factor_to_calc,
                        std::vector<UIntVec>& output)
 {
   UInt cardinality = factor_to_calc.cardinals[state_index];
-  output.reserve(cardinality);
+  output.resize(cardinality, UIntVec());
 
   UInt prod_to_state_index = vec_prod_n(factor_to_calc.cardinals, state_index);
   prod_to_state_index     -= 1u;
@@ -162,35 +162,21 @@ void get_state_indices(const factor& factor_to_calc,
   UInt total_elems         = vec_prod_n(factor_to_calc.cardinals, factor_to_calc.cardinals.size());
   //  UInt elems_left          = total_elems - ((prod_to_state_index+1u)* cardinality);
 
-  UInt start = 0u;
-  UInt end   = prod_to_state_index;
-  output.push_back(arange(start, end, 1u));
-
-  /* output of each row represent indices for each state */
-  for (UInt var_state = 1u; var_state < cardinality; var_state++)
-  {
-    start = end   + 1u;
-    end   = start + prod_to_state_index;
-    output.push_back(arange(start, end, 1u));
-  }
-
+  UInt start_idx, end_idx, step_size = (prod_to_state_index + 1u)*cardinality;
+  
   // out of the elems_left, these indices will repeat every (prod_to_state_index * cardinality)
   // out of the repeatedness, prod_to_state_index-1 is the start and end index
-  for (UInt iter = end + 1u; iter < total_elems; iter += (prod_to_state_index + 1u)*cardinality)
+  for (UInt iter = 0u; iter < total_elems; iter += step_size)
   {
-    start = iter;
-    end = start + prod_to_state_index;
-    auto ranges = arange(start, end, 1u);
-    output[0].reserve(end - start);
-    std::copy(ranges.begin(), ranges.end(), std::back_inserter(output[0]));
+    start_idx = iter;
+    end_idx = start_idx + prod_to_state_index;
+    add_range(output[0], start_idx, end_idx, 1u); 
 
-    for (UInt i = 1; i < cardinality; i++)
+    for (UInt var_state = 1u; var_state < cardinality; var_state++)
     {
-      start = end + 1u;
-      end   = start + prod_to_state_index;
-      ranges = arange(start, end, 1u);
-      output[i].reserve(end - start);
-      std::copy(ranges.begin(), ranges.end(), std::back_inserter(output[i])); 
+      start_idx = end_idx + 1u;
+      end_idx   = start_idx + prod_to_state_index;
+      add_range(output[var_state], start_idx, end_idx, 1u);
     }
   }
 }
@@ -220,19 +206,15 @@ void factor_product(const factor& factor_left,
   bool factor_right_empty = factor_right.variables.empty();
   if (factor_left_empty && !factor_right_empty)
   {
-    copy_vals(factor_right.variables, product_result.variables);
-    copy_vals(factor_right.cardinals, product_result.cardinals);
-    copy_vals(factor_right.values, product_result.values);
+    copy_factor(factor_right, product_result);
   }
   else if (!factor_left_empty && factor_right_empty)
   {
-    copy_vals(factor_left.variables, product_result.variables);
-    copy_vals(factor_left.cardinals, product_result.cardinals);
-    copy_vals(factor_left.values, product_result.values);
+    copy_factor(factor_left, product_result);
   }
   else if (!factor_left_empty && !factor_right_empty)
   {
-    std::vector<unsigned int> intersection_indices_left, intersection_indices_right;
+    std::vector<UInt> intersection_indices_left, intersection_indices_right;
     get_intersection(factor_left.variables, 
                      factor_right.variables, 
                      intersection_indices_left,
@@ -245,8 +227,8 @@ void factor_product(const factor& factor_left,
       // check if cardinalities matches for the intersection
       for (std::size_t iter = 0; iter < intersection_indices_left.size(); iter++)
       {
-        unsigned int factor_left_idx  = intersection_indices_left[iter];
-        unsigned int factor_right_idx = intersection_indices_right[iter];
+        UInt factor_left_idx  = intersection_indices_left[iter];
+        UInt factor_right_idx = intersection_indices_right[iter];
 
         if (factor_left.cardinals[factor_left_idx] != factor_right.cardinals[factor_right_idx])
         {
@@ -342,22 +324,22 @@ void factor_marginalize(const factor& factor_marginalize,
 }
 
 
-void compute_joint(const std::vector<factor>& factors_vec, 
+void compute_joint(const std::vector<factor*>& factors_vec, 
                         factor& jpd_result)
 {
   if (factors_vec.size() >= 2u)
   {
-    factor_product(factors_vec[0], factors_vec[1], jpd_result);
+    factor_product(*factors_vec[0], *factors_vec[1], jpd_result);
     factor temp;
     for (std::size_t iter = 2u; iter < factors_vec.size(); iter++)
     {
-      factor_product(factors_vec[iter], jpd_result, temp);
+      factor_product(*factors_vec[iter], jpd_result, temp);
       copy_factor(temp, jpd_result);
     }
   }
   else if (factors_vec.size() == 1u)
   {
-    copy_factor(factors_vec[0], jpd_result);
+    copy_factor(*factors_vec[0], jpd_result);
   }
   else
   {
@@ -367,7 +349,7 @@ void compute_joint(const std::vector<factor>& factors_vec,
 
 
 void observe_evidence(const std::vector<UIntVec>& evidence, 
-                            std::vector<factor>& factor_vec)
+                            std::vector<factor*>& factor_vec)
 {
   for (std::size_t evidence_iter = 0u; evidence_iter < evidence.size(); evidence_iter++)
   {
@@ -376,16 +358,16 @@ void observe_evidence(const std::vector<UIntVec>& evidence,
 
     for (std::size_t factor_iter = 0u; factor_iter < factor_vec.size(); factor_iter++)
     {
-      int var_index = get_var_index(factor_vec[factor_iter], variable);
+      int var_index = get_var_index(*factor_vec[factor_iter], variable);
       if (var_index != -1)
       {
-        if (   (var_state < factor_vec[factor_iter].cardinals[var_index]) 
+        if (   (var_state < factor_vec[factor_iter]->cardinals[var_index]) 
             && (var_state >= 0u                                         ))
         {
           std::vector<UIntVec> var_state_indices;
           
           // \to-do: below function can be replaced to compute just the indices of the given var_state
-          get_state_indices(factor_vec[factor_iter], var_index, var_state_indices);
+          get_state_indices(*factor_vec[factor_iter], var_index, var_state_indices);
 
           for (std::size_t state_iter = 0u; state_iter < var_state_indices.size(); state_iter++)
           {
@@ -393,7 +375,7 @@ void observe_evidence(const std::vector<UIntVec>& evidence,
             {
               for (std::size_t indices_iter = 0u; indices_iter < var_state_indices[state_iter].size(); indices_iter++)
               {
-                factor_vec[factor_iter].values[var_state_indices[state_iter][indices_iter]] = 0.0f;
+                factor_vec[factor_iter]->values[var_state_indices[state_iter][indices_iter]] = 0.0f;
               }
             }
           }
@@ -411,17 +393,15 @@ void factor_normalize(factor& factor_to_normalize)
 }
 
 
-void compute_marginal(const std::vector<UInt>&    marginal_vars,
-                      const std::vector<UIntVec>& evidence,
-                      const std::vector<factor>&  factor_vec,
-                            factor&               factor_marg)
+void compute_marginal(const std::vector<UInt>&     marginal_vars,
+                      const std::vector<UIntVec>&  evidence,
+                      const std::vector<factor*>&  factor_vec,
+                            factor&                factor_marg)
 {
   compute_joint(factor_vec, factor_marg);
 
-  std::vector<factor> factor_marg_ref_vec = {factor_marg};
+  std::vector<factor*> factor_marg_ref_vec { &factor_marg};
   observe_evidence(evidence, factor_marg_ref_vec);
-
-  copy_factor(factor_marg_ref_vec[0], factor_marg);
 
   UIntVec var_to_marginalize;
   get_difference(factor_marg.variables, 
