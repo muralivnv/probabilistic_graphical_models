@@ -7,6 +7,9 @@ typedef unsigned int UInt;
 typedef std::vector<unsigned int> UIntVec;
 typedef std::vector<unsigned int>::const_iterator UIntVecConstIter;
 
+namespace BN
+{
+  
 struct networkNode{
   unsigned int node_index;
   std::vector<std::shared_ptr<networkNode>> children;
@@ -19,5 +22,7 @@ struct factor{
   std::vector<unsigned int> cardinals;
   std::vector<float> values;
 };
+
+} // end namespace {BN}
 
 #endif

@@ -49,7 +49,7 @@
             "label": "Cpp: VCCompile[DBG]",
             "type": "shell",
             "command": "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\VC\\Tools\\MSVC\\14.24.28314\\bin\\Hostx64\\x64\\cl.exe\"",
-            "args": ["-EHsc", "-Zi", "-Fe:", "${fileBasename}.exe", "${fileBasename}"],
+            "args": ["-EHsc", "-Zi", "-Fe:", "${fileBasename}.exe", "${fileBasename}", "-I", "${workspaceFolder}/../include/"],
             "group": {
               "kind": "build",
               "isDefault": true
@@ -64,7 +64,7 @@
             "label": "Cpp: VCCompile[REL]",
             "type": "shell",
             "command": "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\VC\\Tools\\MSVC\\14.24.28314\\bin\\Hostx64\\x64\\cl.exe\"",
-            "args": ["-EHsc", "-O2", "-Fe:", "${fileBasename}.exe", "${fileBasename}"],
+            "args": ["-EHsc", "-O2", "-Fe:", "${fileBasename}.exe", "${fileBasename}", "-I", "${workspaceFolder}/../include/"],
             "group": {
               "kind": "build",
               "isDefault": true

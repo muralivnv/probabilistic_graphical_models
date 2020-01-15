@@ -10,6 +10,8 @@
 #include "BN_types.h"
 #include "util.h"
 
+namespace BN
+{
 
 void add_edge(std::map<std::string, std::shared_ptr<networkNode>>& network, 
               const std::string& parent_name, 
@@ -156,10 +158,10 @@ void get_state_indices(const factor& factor_to_calc,
   UInt cardinality = factor_to_calc.cardinals[state_index];
   output.resize(cardinality, UIntVec());
 
-  UInt prod_to_state_index = vec_prod_n(factor_to_calc.cardinals, state_index);
+  UInt prod_to_state_index = util::vec_prod_n(factor_to_calc.cardinals, state_index);
   prod_to_state_index     -= 1u;
 
-  UInt total_elems         = vec_prod_n(factor_to_calc.cardinals, factor_to_calc.cardinals.size());
+  UInt total_elems         = util::vec_prod_n(factor_to_calc.cardinals, factor_to_calc.cardinals.size());
   //  UInt elems_left          = total_elems - ((prod_to_state_index+1u)* cardinality);
 
   UInt start_idx, end_idx, step_size = (prod_to_state_index + 1u)*cardinality;
@@ -170,13 +172,13 @@ void get_state_indices(const factor& factor_to_calc,
   {
     start_idx = iter;
     end_idx = start_idx + prod_to_state_index;
-    add_range(output[0], start_idx, end_idx, 1u); 
+    util::add_range(output[0], start_idx, end_idx, 1u); 
 
     for (UInt var_state = 1u; var_state < cardinality; var_state++)
     {
       start_idx = end_idx + 1u;
       end_idx   = start_idx + prod_to_state_index;
-      add_range(output[var_state], start_idx, end_idx, 1u);
+      util::add_range(output[var_state], start_idx, end_idx, 1u);
     }
   }
 }
@@ -206,11 +208,11 @@ void factor_product(const factor& factor_left,
   bool factor_right_empty = factor_right.variables.empty();
   if (factor_left_empty && !factor_right_empty)
   {
-    copy_factor(factor_right, product_result);
+    util::copy_factor(factor_right, product_result);
   }
   else if (!factor_left_empty && factor_right_empty)
   {
-    copy_factor(factor_left, product_result);
+    util::copy_factor(factor_left, product_result);
   }
   else if (!factor_left_empty && !factor_right_empty)
   {
@@ -248,7 +250,7 @@ void factor_product(const factor& factor_left,
                        intersection_indices_right,
                        product_result);
 
-      product_result.values = std::vector<float> (vec_prod(product_result.cardinals), 0.0F);
+      product_result.values = std::vector<float> (util::vec_prod(product_result.cardinals), 0.0F);
 
       // now need to multiply factor together
       std::vector<UIntVec> indices_left, indices_right, indices_prod;
@@ -307,7 +309,7 @@ void factor_marginalize(const factor& factor_marginalize,
         marginal_result.cardinals.push_back(factor_marginalize.cardinals[source_iter]);
       }
     }
-    marginal_result.values.reserve(vec_prod(marginal_result.cardinals));
+    marginal_result.values.reserve(util::vec_prod(marginal_result.cardinals));
 
     get_state_indices(factor_marginalize, var_index, factor_indices);
     UInt result_iter = 0u;
@@ -334,12 +336,12 @@ void compute_joint(const std::vector<factor*>& factors_vec,
     for (std::size_t iter = 2u; iter < factors_vec.size(); iter++)
     {
       factor_product(*factors_vec[iter], jpd_result, temp);
-      copy_factor(temp, jpd_result);
+      util::copy_factor(temp, jpd_result);
     }
   }
   else if (factors_vec.size() == 1u)
   {
-    copy_factor(*factors_vec[0], jpd_result);
+    util::copy_factor(*factors_vec[0], jpd_result);
   }
   else
   {
@@ -388,8 +390,8 @@ void observe_evidence(const std::vector<UIntVec>& evidence,
 
 void factor_normalize(factor& factor_to_normalize)
 {
-  float probability_sum = vec_sum_n(factor_to_normalize.values, factor_to_normalize.values.size());
-  vec_divide_n(factor_to_normalize.values, probability_sum, factor_to_normalize.values.size());
+  float probability_sum = util::vec_sum_n(factor_to_normalize.values, factor_to_normalize.values.size());
+  util::vec_divide_n(factor_to_normalize.values, probability_sum, factor_to_normalize.values.size());
 }
 
 
@@ -412,7 +414,7 @@ void compute_marginal(const std::vector<UInt>&     marginal_vars,
   for (const UInt& var: var_to_marginalize)
   {
     factor_marginalize(factor_marg, var, temp);
-    copy_factor(temp, factor_marg);
+    util::copy_factor(temp, factor_marg);
   }
   factor_marg.cardinals.shrink_to_fit();
   factor_marg.variables.shrink_to_fit();
@@ -420,5 +422,7 @@ void compute_marginal(const std::vector<UInt>&     marginal_vars,
 
   factor_normalize(factor_marg);
 }
+
+} // end namespace {BN}
 
 #endif

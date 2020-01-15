@@ -6,14 +6,10 @@
 
 #include "BN_types.h"
 
-template <typename T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec)
-{
-  for (const T& vec_elem: vec)
-  {  std::cout << vec_elem << " ";  }
-  return os;
-}
+using namespace BN;
 
+namespace util
+{
 
 template<typename T>
 void copy_vals(const T& container_source, T& dest)
@@ -97,6 +93,17 @@ void add_range(std::vector<T>& vec, const T start, const T end, const T step)
   {  vec.push_back(iter);  }
 
   vec.shrink_to_fit();
+}
+
+} // end namespace {util}
+
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec)
+{
+  for (const T& vec_elem: vec)
+  {  std::cout << vec_elem << " ";  }
+  return os;
 }
 
 

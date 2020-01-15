@@ -6,6 +6,9 @@
 #include "BN_operations.h"
 #include "util.h"
 
+using namespace BN;
+using namespace util;
+
 int main()
 {
   /* 
