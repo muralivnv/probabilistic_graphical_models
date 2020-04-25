@@ -1,11 +1,23 @@
 #ifndef _CUSTOM_UTILS_H_
 #define _CUSTOM_UTILS_H_
 
-// eigen library specific
-#include <Eigen/Eigen/Dense>
+#include <vector>
+#include <map>
+#include <string>
+#include <fstream>
+#include <algorithm>
+#include <cstdlib>
+#include <ctime>
 
-using namespace Eigen;
+struct wordProbability{
+  std::vector<float> probabilities;
+  wordProbability(int n=2):probabilities(std::vector<float>(n, 0.0F)){}
+  ~wordProbability()
+  { probabilities.clear(); }
+};
+
 typedef std::map<int, std::vector<std::string>> SMS_DATASET_TYPE;
+typedef std::map<std::string, wordProbability> FEATURE_PROBABILITY_TYPE;
 typedef std::vector<std::vector<int>>           MAT_INT_2D;
 
 std::map<std::string, int> identifiers_to_int{{"ham", 0}, {"spam", 1}};
@@ -61,27 +73,70 @@ void process_data(SMS_DATASET_TYPE& dataset)
 }
 
 
-void tokenize_strings(const SMS_DATASET_TYPE& dataset, 
-                      MatrixXi& frequency_matrix_class1, 
-                      MatrixXi& frequency_matrix_class2)
+void generate_permutations(std::vector<int>& permutations_out, const std::size_t len)
+{
+  // first fill permutations_out 
+  permutations_out = std::vector<int> (len, 0);
+  int n = -1;
+  std::generate(permutations_out.begin(), permutations_out.end(), [n=-1]() mutable {return n++;});
+
+  n = len;
+  
+  srand(time(NULL));
+  for (std::size_t iter = 0u; iter < len; iter++)
+  {
+    int rand_index = rand() % n;
+
+    // swap first and random index
+    int temp = permutations_out[len-n];
+    permutations_out[len-n] = permutations_out[(len-n)+rand_index];
+    permutations_out[rand_index] = temp;
+    n--;
+  }
+}
+
+
+void train_test_split(const SMS_DATASET_TYPE& dataset_container, 
+                      const float train_frac, 
+                      MAT_INT_2D& train_data_indices, 
+                      MAT_INT_2D& test_data_indices)
+{
+  train_data_indices = MAT_INT_2D(dataset_container.size());
+  test_data_indices  = MAT_INT_2D(dataset_container.size());
+
+  for (auto& class_type : dataset_container)
+  {
+    int train_len = (int)((float)class_type.second.size()*train_frac);
+    int test_len  = class_type.second.size() - train_len;
+    std::vector<int> permutations;
+
+    generate_permutations(permutations, class_type.second.size());
+
+    train_data_indices[class_type.first] = std::vector<int>(train_len, 0);
+    test_data_indices[class_type.first] = std::vector<int>(test_len, 0);
+
+    std::copy_n(permutations.begin(), train_len, train_data_indices[class_type.first].begin());
+    std::copy(permutations.begin()+train_len, permutations.end(), test_data_indices[class_type.first].begin());
+  }
+}
+
+
+void calc_probabilities(const SMS_DATASET_TYPE&         input_dataset, 
+                        const MAT_INT_2D&               data_indices_to_use,
+                              FEATURE_PROBABILITY_TYPE& feature_probabilities)
 {
   auto is_space = [](char c){ return (c == ' ');};
+  std::vector<std::size_t> total_word_count(input_dataset.size(), 0);
 
-  std::vector<std::vector<std::map<std::string, int>>> word_count_num(dataset.size());
-
-  // now combine every key in each row and create frequency matrix as a whole
-  std::map<std::string, int> combined_unique_words;
-
-  for (const auto& row: dataset)
+  for (const auto& row: input_dataset)
   {
-    word_count_num[row.first].reserve(row.second.size());
+    auto& data_indices_this_class = data_indices_to_use[row.first];
 
-    for (std::size_t iter = 0u; iter < row.second.size(); iter++)
+    for (std::size_t iter = 0u; iter < data_indices_this_class.size(); iter++)
     {
-      std::string current_string = row.second[iter];
+      std::string current_string = row.second[data_indices_this_class[iter]];
       std::istringstream token_stream(current_string);
       std::string word;
-      word_count_num[row.first].push_back(std::map<std::string, int>{});
 
       while(std::getline(token_stream, word, ' '))
       {
@@ -90,60 +145,94 @@ void tokenize_strings(const SMS_DATASET_TYPE& dataset,
         {
           // change this word to lower case
           std::transform(word.begin(), word.end(), word.begin(), std::tolower);
-          if (word_count_num[row.first][iter].find(word) == word_count_num[row.first][iter].end())
-          { word_count_num[row.first][iter][word] = 0; }
 
-          word_count_num[row.first][iter][word]++;
-          combined_unique_words[word] = 0;
+          // if this word is not in the Bag-of-words container then add and initialize
+          if (feature_probabilities.find(word) == feature_probabilities.end())
+          {
+            feature_probabilities[word] = wordProbability(input_dataset.size());
+          }
+
+          feature_probabilities[word].probabilities[row.first] += 1.0F;
+          total_word_count[row.first]++;
         }
       }
     }
   }
 
-  // frequency_matrix_class1.resize(class1_rows, combined_unique_words.size());
-  frequency_matrix_class1.resize(word_count_num[0].size(), combined_unique_words.size());
-  frequency_matrix_class2.resize(word_count_num[1].size(), combined_unique_words.size());
-  // frequency_matrix_class2.resize(class2_rows combined_unique_words.size());
-
-  std::size_t col_iter = 0u;
-  // first do for class 1
-  for (std::pair<const std::string, int>& elem : combined_unique_words)
+  // now divide each word in each class with the total number of words in it's class
+  // there is a chance we might encounter absolutely zero probabilities for a word in any class
+  // for this use laplace smoothing
+  const float smoothing_constant = 1.0F;
+  for (std::pair<const std::string, wordProbability>& this_word : feature_probabilities)
   {
-    for (std::size_t row_iter = 0u; row_iter < word_count_num[0].size(); row_iter++)
+    for (std::size_t class_iter = 0u; class_iter < input_dataset.size(); class_iter++)
     {
-      std::map<std::string, int> & row = word_count_num[0][row_iter];
-
-      if (row.find(elem.first) != row.end())
-      {
-        frequency_matrix_class1(row_iter, col_iter) = row[elem.first];
-      }
-      else
-      {
-        frequency_matrix_class1(row_iter, col_iter) = 0;
-      }
+      this_word.second.probabilities[class_iter] += smoothing_constant;
+      float denominator = (float)total_word_count[class_iter] + smoothing_constant*((float)data_indices_to_use[class_iter].size());
+      this_word.second.probabilities[class_iter] /= denominator;
     }
-    col_iter++;
   }
+}
 
-  // now for class 2
-  col_iter = 0u;
 
-  for (std::pair<const std::string, int>& elem : combined_unique_words)
+void predict_class(const SMS_DATASET_TYPE&          input_dataset,
+                   const MAT_INT_2D&                data_indices_to_use,
+                   const FEATURE_PROBABILITY_TYPE&  feature_probabilities,
+                         MAT_INT_2D&                predicted_labels)
+{
+  auto is_space = [](char c){ return (c == ' ');};
+  std::vector<float> class_probabilities(input_dataset.size());
+  
+  std::size_t total_docs = 0u;
+
+  // calculate class_probabilities
+  for (auto& class_type: input_dataset)
+  { total_docs += class_type.second.size(); }
+
+  for (std::size_t class_iter = 0u; iter < data_indices_to_use.size(); class_iter++)
   {
-    for (std::size_t row_iter = 0u; row_iter < word_count_num[1].size(); row_iter++)
-    {
-      std::map<std::string, int> & row = word_count_num[1][row_iter];
+    auto& data_indices_this_class = data_indices_to_use[class_iter];
+    auto& this_class_dataset = input_dataset[class_iter];
 
-      if (row.find(elem.first) != row.end())
+    class_probabilities[row.first] = (float)(this_class_dataset.second.size())/(float)(total_docs);
+    for (std::size_t iter = 0u; iter < data_indices_this_class.size(); iter++)
+    {
+      wordProbability this_document_probs(input_dataset.size());
+      std::string current_string = this_class_dataset.second[data_indices_this_class[iter]];
+      std::istringstream token_stream(current_string);
+      std::string word;
+
+      while(std::getline(token_stream, word, ' '))
       {
-        frequency_matrix_class2(row_iter, col_iter) = row[elem.first];
+        word.erase(std::remove_if(word.begin(), word.end(), is_space), word.end());
+        if (word.length() > 1u)
+        {
+          // change this word to lower case
+          std::transform(word.begin(), word.end(), word.begin(), std::tolower);
+
+          // if this word is not in the Bag-of-words container then add and initialize
+          if (feature_probabilities.find(word) != feature_probabilities.end())
+          {
+            auto& this_word_prob = feature_probabilities[word].second.probabilities;
+            for (std::size_t word_prob_iter = 0u; word_prob_iter < this_word_prob.size(); word_prob_iter++)
+            {
+              this_document_probs.probabilities[word_prob_iter] *= this_word_prob[word_prob_iter];
+            }
+          }
+        }
       }
-      else
+
+      // now flag class with maximum probability as the predicted class
+      float max_prob = 0.0F;
+      for (std::size_t doc_prob_iter = 0u; doc_prob_iter < this_document_probs.probabilities.size(); doc_prob_iter++)
       {
-        frequency_matrix_class2(row_iter, col_iter) = 0;
+        if (this_document_probs.probabilities[doc_prob_iter] > max_prob)
+        {
+          predicted_labels[class_iter][iter] = doc_prob_iter;
+          max_prob = this_document_probs.probabilities[doc_prob_iter];
+        }
       }
     }
-    col_iter++;
   }
 }
 
