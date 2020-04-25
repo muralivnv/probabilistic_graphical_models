@@ -4,8 +4,10 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <sstream>
 #include <fstream>
 #include <algorithm>
+
 #include <cstdlib>
 #include <ctime>
 
@@ -189,16 +191,16 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
   for (auto& class_type: input_dataset)
   { total_docs += class_type.second.size(); }
 
-  for (std::size_t class_iter = 0u; iter < data_indices_to_use.size(); class_iter++)
+  for (int class_iter = 0u; class_iter < data_indices_to_use.size(); class_iter++)
   {
     auto& data_indices_this_class = data_indices_to_use[class_iter];
-    auto& this_class_dataset = input_dataset[class_iter];
+    auto& this_class_dataset      = input_dataset.at(class_iter);
 
-    class_probabilities[row.first] = (float)(this_class_dataset.second.size())/(float)(total_docs);
+    class_probabilities[class_iter] = (float)(this_class_dataset.size())/(float)(total_docs);
     for (std::size_t iter = 0u; iter < data_indices_this_class.size(); iter++)
     {
       wordProbability this_document_probs(input_dataset.size());
-      std::string current_string = this_class_dataset.second[data_indices_this_class[iter]];
+      std::string current_string = this_class_dataset[data_indices_this_class[iter]];
       std::istringstream token_stream(current_string);
       std::string word;
 
@@ -213,7 +215,7 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
           // if this word is not in the Bag-of-words container then add and initialize
           if (feature_probabilities.find(word) != feature_probabilities.end())
           {
-            auto& this_word_prob = feature_probabilities[word].second.probabilities;
+            auto& this_word_prob = feature_probabilities.at(word).probabilities;
             for (std::size_t word_prob_iter = 0u; word_prob_iter < this_word_prob.size(); word_prob_iter++)
             {
               this_document_probs.probabilities[word_prob_iter] *= this_word_prob[word_prob_iter];
