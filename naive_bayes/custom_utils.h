@@ -10,6 +10,7 @@
 
 #include <cstdlib>
 #include <ctime>
+#include <cmath>
 
 struct wordProbability{
   std::vector<float> probabilities;
@@ -232,7 +233,7 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
             auto& this_word_prob = feature_probabilities.at(word).probabilities;
             for (std::size_t word_prob_iter = 0u; word_prob_iter < this_word_prob.size(); word_prob_iter++)
             {
-              this_document_probs.probabilities[word_prob_iter] *= this_word_prob[word_prob_iter];
+              this_document_probs.probabilities[word_prob_iter] += std::log(this_word_prob[word_prob_iter]);
             }
           }
         }
@@ -242,6 +243,7 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
       float max_prob = 0.0F;
       for (std::size_t doc_prob_iter = 0u; doc_prob_iter < this_document_probs.probabilities.size(); doc_prob_iter++)
       {
+        this_document_probs.probabilities[doc_prob_iter] += std::log(class_probabilities[class_iter]);
         if (this_document_probs.probabilities[doc_prob_iter] > max_prob)
         {
           predicted_labels[class_iter][iter] = doc_prob_iter;

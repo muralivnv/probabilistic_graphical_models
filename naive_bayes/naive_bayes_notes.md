@@ -8,6 +8,9 @@ because of conditional independence assumption across features, the above equati
 $$ P(y|x_1,x_2,x_3,...x_n) = \frac{P(y) \prod_{i=1}^nP(x_i|y)}{P(x_1,x_2,....,x_n)} $$
 $$ \Longrightarrow P(y|x_1,x_2,x_3,...x_n) \propto P(y) \prod_{i=1}^nP(x_i|y) $$
 
+#### Preventing floating point underflow
+As multiplying lots of probabilities can result in floating-point underflow, we can simply do sum of $\log$ and the class with highest relative value usually wins.
+$$ \Longrightarrow P(y|x_1,x_2,x_3,...x_n) \propto \log(P(y)) + \log(\prod_{i=1}^nP(x_i|y)) $$
 ## Different types of Naive Bayes estimation
 ### Gaussian Naive Bayesian
   - Used when the features are distributed over a gaussian distribution with mean, $\mu_{iy}$, and std.dev, $\sigma_{iy}$ (where subscript $iy$ represents feature $i$ in class $y$)
@@ -41,9 +44,9 @@ When it comes to Text classification things like stop words (at, and,...), punct
 * n-grams 
   - instead of using unigram model we could use bi-gram or n-gram depending on the type of the task at hand 
 * TF-IDF
-  - fgf
 
 ## References
   - **[Scikit_learn_naiveBayes](https://scikit-learn.org/stable/modules/naive_bayes.html)**
   - **[Stanford_Juarfsky_slides](https://web.stanford.edu/~jurafsky/slp3/slides/7_NB.pdf)**
   - **[CMU_EpXing_slides](https://www.cs.cmu.edu/~epxing/Class/10701-10s/Lecture/lecture5.pdf)**
+  - **[Complement_Naive_Bayes](https://people.csail.mit.edu/jrennie/papers/icml03-nb.pdf)**
