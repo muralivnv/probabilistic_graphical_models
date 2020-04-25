@@ -268,10 +268,6 @@ void evaluate_result(const SMS_DATASET_TYPE& input_dataset,
   {
     for (std::size_t index_iter = 0u; index_iter < data_indices_to_use[class_input.first].size(); index_iter++)
     {
-      // true_positive_count  += (class_input.first == predicted_labels[class_input.first][index_iter])?1.0F:0.0F;
-      // false_positive_count += (1-class_input.first) == (predicted_labels[class_input.first][index_iter])?1.0F:0.0F;
-      // true_negative_count  += (1-class_input.first) == (1-predicted_labels[class_input.first][index_iter])?1.0F:0.0F;
-      // false_negative_count += (class_input.first) == (1-predicted_labels[class_input.first][index_iter])?1.0F:0.0F;
       true_positive_count  += (class_input.first & predicted_labels[class_input.first][index_iter]) > 0?1.0F:0.0F;
       false_positive_count += (1-class_input.first) & (predicted_labels[class_input.first][index_iter]) > 0?1.0F:0.0F;
       true_negative_count  += (1-class_input.first) & (1-predicted_labels[class_input.first][index_iter]) >0?1.0F:0.0F;
