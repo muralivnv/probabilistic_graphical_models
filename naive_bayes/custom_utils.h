@@ -13,9 +13,19 @@
 
 struct wordProbability{
   std::vector<float> probabilities;
-  wordProbability(int n=2):probabilities(std::vector<float>(n, 0.0F)){}
+  wordProbability(int n=2, const float init_val=0.0F):probabilities(std::vector<float>(n, init_val)){}
   ~wordProbability()
   { probabilities.clear(); }
+};
+
+struct predictionMetric{
+  float accuracy;
+  float f1_score;
+  float precision;
+  float recall;
+  predictionMetric():accuracy(0.0F), f1_score(0.0F), precision(0.0F), recall(0.0F){}
+  void reset()
+  { this->accuracy = 0.0F; this->f1_score = 0.0F; this->precision = 0.0F; this->recall = 0.0F;  }
 };
 
 typedef std::map<int, std::vector<std::string>> SMS_DATASET_TYPE;
@@ -184,12 +194,16 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
 {
   auto is_space = [](char c){ return (c == ' ');};
   std::vector<float> class_probabilities(input_dataset.size());
-  
+  predicted_labels = MAT_INT_2D(input_dataset.size());
+
   std::size_t total_docs = 0u;
 
   // calculate class_probabilities
   for (auto& class_type: input_dataset)
-  { total_docs += class_type.second.size(); }
+  { 
+    total_docs += class_type.second.size(); 
+    predicted_labels[class_type.first] = std::vector<int>(data_indices_to_use[class_type.first].size(), 0);
+  }
 
   for (int class_iter = 0u; class_iter < data_indices_to_use.size(); class_iter++)
   {
@@ -199,7 +213,7 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
     class_probabilities[class_iter] = (float)(this_class_dataset.size())/(float)(total_docs);
     for (std::size_t iter = 0u; iter < data_indices_this_class.size(); iter++)
     {
-      wordProbability this_document_probs(input_dataset.size());
+      wordProbability this_document_probs(input_dataset.size(), 1.0F);
       std::string current_string = this_class_dataset[data_indices_this_class[iter]];
       std::istringstream token_stream(current_string);
       std::string word;
@@ -236,6 +250,50 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
       }
     }
   }
+}
+
+
+void evaluate_result(const SMS_DATASET_TYPE& input_dataset,
+                     const MAT_INT_2D&        data_indices_to_use,
+                     const MAT_INT_2D&        predicted_labels,
+                           predictionMetric&  evaluated_metric)
+{
+  float true_positive_count  = 0.0F;
+  float false_positive_count = 0.0F;
+  float true_negative_count  = 0.0F;
+  float false_negative_count = 0.0F;
+  evaluated_metric.reset();
+
+  for (auto& class_input : input_dataset)
+  {
+    for (std::size_t index_iter = 0u; index_iter < data_indices_to_use[class_input.first].size(); index_iter++)
+    {
+      // true_positive_count  += (class_input.first == predicted_labels[class_input.first][index_iter])?1.0F:0.0F;
+      // false_positive_count += (1-class_input.first) == (predicted_labels[class_input.first][index_iter])?1.0F:0.0F;
+      // true_negative_count  += (1-class_input.first) == (1-predicted_labels[class_input.first][index_iter])?1.0F:0.0F;
+      // false_negative_count += (class_input.first) == (1-predicted_labels[class_input.first][index_iter])?1.0F:0.0F;
+      true_positive_count  += (class_input.first & predicted_labels[class_input.first][index_iter]) > 0?1.0F:0.0F;
+      false_positive_count += (1-class_input.first) & (predicted_labels[class_input.first][index_iter]) > 0?1.0F:0.0F;
+      true_negative_count  += (1-class_input.first) & (1-predicted_labels[class_input.first][index_iter]) >0?1.0F:0.0F;
+      false_negative_count += (class_input.first) & (1-predicted_labels[class_input.first][index_iter]) >0?1.0F:0.0F;
+    }
+  }
+
+  evaluated_metric.recall    = true_positive_count / (true_positive_count + false_negative_count);
+  evaluated_metric.precision = true_positive_count / (true_positive_count + false_positive_count);
+  evaluated_metric.accuracy  = (true_positive_count + true_negative_count) / (true_positive_count + false_negative_count + false_positive_count + true_negative_count);
+  evaluated_metric.f1_score  = 2.0F*evaluated_metric.recall*evaluated_metric.precision/(evaluated_metric.recall + evaluated_metric.precision);
+}
+
+
+std::ostream& operator<<(std::ostream& os, const predictionMetric& metric_out)
+{
+  os << "accuracy: "  << metric_out.accuracy << '\n';
+  os << "precision: " << metric_out.precision << '\n';
+  os << "recall: "    << metric_out.recall << '\n';
+  os << "f1_score: "  << metric_out.f1_score << '\n';
+
+  return os;
 }
 
 #endif

@@ -34,6 +34,7 @@ int main()
                      feature_probabilities);
 
   std::vector<std::vector<int>> predicted_labels;
+  predictionMetric mnb_prediction_metric;
 
   // now process test data and classify each document
   predict_class(sms_dataset_input,
@@ -41,6 +42,12 @@ int main()
                 feature_probabilities,
                 predicted_labels);
 
+  evaluate_result(sms_dataset_input,
+                  test_data_indices,
+                  predicted_labels,
+                  mnb_prediction_metric);
+
+  std::cout << mnb_prediction_metric;
 
   return EXIT_SUCCESS;
 }
