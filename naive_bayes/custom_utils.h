@@ -33,7 +33,7 @@ typedef std::map<int, std::vector<std::string>> SMS_DATASET_TYPE;
 typedef std::map<std::string, wordProbability> FEATURE_PROBABILITY_TYPE;
 typedef std::vector<std::vector<int>>           MAT_INT_2D;
 
-std::map<std::string, int> identifiers_to_int{{"ham", 0}, {"spam", 1}};
+static std::map<std::string, int> identifiers_to_int{{"ham", 0}, {"spam", 1}};
 
 void read_data(const std::string& data_filename, SMS_DATASET_TYPE& container_to_fill)
 {
@@ -239,8 +239,9 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
         }
       }
 
-      // now flag class with maximum probability as the predicted class
+      // now flag class with maximum probability as the predicted class, initialize class with Spam
       float max_prob = -100.0F;
+      predicted_labels[class_iter][iter] = identifiers_to_int["spam"];
       for (std::size_t doc_prob_iter = 0u; doc_prob_iter < this_document_probs.probabilities.size(); doc_prob_iter++)
       {
         this_document_probs.probabilities[doc_prob_iter] += std::log(class_probabilities[class_iter]);
