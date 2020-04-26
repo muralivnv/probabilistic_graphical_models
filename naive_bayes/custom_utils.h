@@ -240,7 +240,7 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
       }
 
       // now flag class with maximum probability as the predicted class
-      float max_prob = 0.0F;
+      float max_prob = -100.0F;
       for (std::size_t doc_prob_iter = 0u; doc_prob_iter < this_document_probs.probabilities.size(); doc_prob_iter++)
       {
         this_document_probs.probabilities[doc_prob_iter] += std::log(class_probabilities[class_iter]);
