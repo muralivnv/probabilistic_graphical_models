@@ -31,9 +31,19 @@ $$ \hat{P}(x_i|y) = \frac{count(x_i, y) + 1}{\sum_{w\in v}(count(x,y) + 1) } $$
 $$ \Longrightarrow \hat{P}(x_i|y) = \frac{count(x_i, y) + 1}{\sum_{w\in v}(count(x,y))+ |v| } $$
 assuming a small constant $\alpha = 0.001$ also called as smoothing parameter
 $$ \hat{P}(x_i|y) = \frac{count(x_i, y) + \alpha}{\sum_{w\in v}(count(x,y))+ \alpha|v| } $$
-This guarantees that the probability, $\hat{P}(x_i|y)$,  can never go to 0  and the result will be between relative frequency ($x_i/N$) and uniform probability ($1/v$) and it's a way of regularizing Naive Bayes.
+This guarantees that the probability, $\hat{P}(x_i|y)$,  can never go to 0  and the result will be between relative frequency ($x_i/N$) and uniform probability ($1/v$) and it's a way of regularizing Naive Bayes.  
+In the end, the estimated class can be obtained by evaluating below expression and selecting the class that has the biggest final value. 
+$$  P(y=y_i|x_1,x_2,x_3,...x_n) \propto \log(P(y=y_i)) + \log(\prod_{i=1}^nP(x_i|y=y_i)) $$
 
-other types are **Complement Naive Bayes**, **Bernoulli Naive Bayes**
+### Complement Naive Bayesian
+  - This is another version of Multinomaial naive bayes where the weights ($\hat{P}(x_i|y_i)$) for a given class are estimated using the word occurances in classes other than $y_i$
+  - This helps in dealing with dataset that has clas imbalance and avoid skewed bias towards one class than the other
+$$ \hat{P}(x_i|y_i) = \frac{count(x_i, y\neq y_i) + \alpha}{\sum_{w\in v}(count(x,y \neq y_i))+ \alpha|v| } $$
+
+Now, the estimated class can be obtained by evaluating below expression and selecting the class that has the **lowest** final value. 
+$$  P(y=y_i|x_1,x_2,x_3,...x_n) \propto \log(P(y=y_i)) - \log(\prod_{i=1}^nP(x_i|y \neq y_i)) $$
+
+other types are **Bernoulli Naive Bayes**
 
 ## Text Classification
 When it comes to Text classification things like stop words (at, and,...), punctuation, numbers, ... tend to skew the feature distribution. Unless the classification is about learning the grammar syntax of a given text, these things are unnecessary. So, a data preprocessing before estimating probabilities are performed. Types of preprocessing things are as follows, 

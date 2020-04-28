@@ -7,16 +7,16 @@
 #include <sstream>
 #include <fstream>
 #include <algorithm>
+#include <random>
+#include <chrono>
 
-#include <cstdlib>
-#include <ctime>
 #include <cmath>
 
 struct wordProbability{
   std::vector<float> probabilities;
-  wordProbability(int n=2, const float init_val=0.0F):probabilities(std::vector<float>(n, init_val)){}
+  wordProbability(std::size_t n=2, const float init_val=0.0F):probabilities(std::vector<float>(n, init_val)){}
   ~wordProbability()
-  { probabilities.clear(); }
+  { probabilities.clear(); probabilities.shrink_to_fit();}
 };
 
 struct predictionMetric{
@@ -72,7 +72,10 @@ void read_data(const std::string& data_filename, SMS_DATASET_TYPE& container_to_
 
 void process_data(SMS_DATASET_TYPE& dataset)
 {
-  auto chars_to_remove = [](char c){return (std::ispunct(static_cast<unsigned char>(c)) || std::isdigit(c));};
+  auto punct_digit = [](char c){return (std::ispunct(static_cast<unsigned char>(c)) || std::isdigit(c));};
+
+  auto invalid_char  = [](char c){return    !(std::isalpha(static_cast<unsigned char>(c))) 
+                                         && !(std::isspace(static_cast<unsigned char>(c))); };
 
   // remove punctuation marks, full-stops, commas, ...
   for (std::pair<const int, std::vector<std::string>>& row: dataset)
@@ -80,7 +83,9 @@ void process_data(SMS_DATASET_TYPE& dataset)
     for (std::size_t iter = 0u; iter < row.second.size(); iter++)
     {
       std::string& this_string = row.second[iter];
-      this_string.erase(std::remove_if(this_string.begin(), this_string.end(), chars_to_remove), this_string.end());
+      this_string.erase(std::remove_if(this_string.begin(), this_string.end(), invalid_char), this_string.end());
+      this_string.erase(std::remove_if(this_string.begin(), this_string.end(), punct_digit), this_string.end());
+      std::transform(this_string.begin(), this_string.end(), this_string.begin(), [](char c) {return (char)std::tolower(c);}); 
     }
   }
 }
@@ -91,21 +96,10 @@ void generate_permutations(std::vector<int>& permutations_out, const std::size_t
   // first fill permutations_out 
   permutations_out = std::vector<int> (len, 0);
   int n = -1;
-  std::generate(permutations_out.begin(), permutations_out.end(), [n=-1]() mutable {return n++;});
-
-  n = len;
-  
-  srand(time(NULL));
-  for (std::size_t iter = 0u; iter < len; iter++)
-  {
-    int rand_index = rand() % n;
-
-    // swap first and random index
-    int temp = permutations_out[len-n];
-    permutations_out[len-n] = permutations_out[(len-n)+rand_index];
-    permutations_out[rand_index] = temp;
-    n--;
-  }
+  unsigned int seed  = static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count());
+  std::mt19937 random_generator(seed);
+  std::generate(permutations_out.begin(), permutations_out.end(), [&n]() mutable {return ++n;});
+  std::shuffle(permutations_out.begin(), permutations_out.end(), random_generator);
 }
 
 
@@ -119,8 +113,8 @@ void train_test_split(const SMS_DATASET_TYPE& dataset_container,
 
   for (auto& class_type : dataset_container)
   {
-    int train_len = (int)((float)class_type.second.size()*train_frac);
-    int test_len  = class_type.second.size() - train_len;
+    std::size_t train_len = (std::size_t)((float)class_type.second.size()*train_frac);
+    std::size_t test_len  = class_type.second.size() - train_len;
     std::vector<int> permutations;
 
     generate_permutations(permutations, class_type.second.size());
@@ -134,12 +128,14 @@ void train_test_split(const SMS_DATASET_TYPE& dataset_container,
 }
 
 
-void calc_probabilities(const SMS_DATASET_TYPE&         input_dataset, 
-                        const MAT_INT_2D&               data_indices_to_use,
-                              FEATURE_PROBABILITY_TYPE& feature_probabilities)
+void calc_TF(const SMS_DATASET_TYPE&      input_dataset,
+             const MAT_INT_2D&            data_indices_to_use,
+                   FEATURE_PROBABILITY_TYPE& feature_probabilities)
 {
   auto is_space = [](char c){ return (c == ' ');};
-  std::vector<std::size_t> total_word_count(input_dataset.size(), 0);
+
+  feature_probabilities.clear();
+  FEATURE_PROBABILITY_TYPE().swap(feature_probabilities);
 
   for (const auto& row: input_dataset)
   {
@@ -156,32 +152,102 @@ void calc_probabilities(const SMS_DATASET_TYPE&         input_dataset,
         word.erase(std::remove_if(word.begin(), word.end(), is_space), word.end());
         if (word.length() > 1u)
         {
-          // change this word to lower case
-          std::transform(word.begin(), word.end(), word.begin(), std::tolower);
-
           // if this word is not in the Bag-of-words container then add and initialize
           if (feature_probabilities.find(word) == feature_probabilities.end())
-          {
-            feature_probabilities[word] = wordProbability(input_dataset.size());
-          }
+          {  feature_probabilities[word] = wordProbability(input_dataset.size());  }
 
           feature_probabilities[word].probabilities[row.first] += 1.0F;
-          total_word_count[row.first]++;
         }
       }
+    }
+  }
+}
+
+
+void calc_TF_IDF(const SMS_DATASET_TYPE&  input_dataset,
+                 const MAT_INT_2D&        data_indices_to_use,
+                       FEATURE_PROBABILITY_TYPE& feature_probabilities)
+{
+  std::size_t number_doc = 0u;
+  std::map<std::string, int> word_in_doc_count;
+  
+  feature_probabilities.clear();
+  FEATURE_PROBABILITY_TYPE().swap(feature_probabilities);
+
+  for (const auto& row: input_dataset)
+  {
+    auto& data_indices_this_class = data_indices_to_use[row.first];
+    number_doc += row.second.size();
+
+    for (std::size_t iter = 0u; iter < data_indices_this_class.size(); iter++)
+    {
+      std::string current_string = row.second[data_indices_this_class[iter]];
+      std::istringstream token_stream(current_string);
+      std::string word;
+
+      std::map<std::string, int> local_map;
+      while(std::getline(token_stream, word, ' '))
+      {
+        word.erase(std::remove_if(word.begin(), word.end(), std::isspace), word.end());
+        if (word.length() > 1u)
+        {
+          // if this word is not in the Bag-of-words container then add and initialize
+          if (feature_probabilities.find(word) == feature_probabilities.end())
+          {  feature_probabilities[word] = wordProbability(input_dataset.size());  }
+
+          feature_probabilities[word].probabilities[row.first] += 1.0F;
+          local_map[word] = 0;
+        }
+      }
+
+      for (const auto& word_occurance : local_map)
+      {
+        if(word_in_doc_count.find(word_occurance.first) == word_in_doc_count.end())
+        {
+          word_in_doc_count[word_occurance.first] = 1;
+        }
+        else
+        { word_in_doc_count[word_occurance.first]++; }
+      }
+    }
+  }
+
+  for (std::pair<const std::string, wordProbability>& this_word : feature_probabilities)
+  {
+    const float IDF_weight = std::logf((float)number_doc/(float)(word_in_doc_count.at(this_word.first)));
+
+    for (std::size_t class_iter = 0u; class_iter < input_dataset.size(); class_iter++)
+    {
+      this_word.second.probabilities[class_iter] = std::logf(feature_probabilities[this_word.first].probabilities[class_iter] + 1.0F) * IDF_weight;
+    }
+  }
+}
+
+
+void calc_word_weights(const SMS_DATASET_TYPE&         input_dataset, 
+                       const MAT_INT_2D&               data_indices_to_use,
+                             FEATURE_PROBABILITY_TYPE& feature_probabilities)
+{
+  std::vector<float> total_freq_count(input_dataset.size(), 0.0F);
+
+  for (const auto& word: feature_probabilities)
+  {
+    for (std::size_t class_iter = 0u; class_iter < word.second.probabilities.size(); class_iter++)
+    {
+      total_freq_count[class_iter] += word.second.probabilities[class_iter];
     }
   }
 
   // now divide each word in each class with the total number of words in it's class
   // there is a chance we might encounter absolutely zero probabilities for a word in any class
   // for this use laplace smoothing
-  const float smoothing_constant = 1.0F;
+  const float smoothing_constant = 1e-4F;
   for (std::pair<const std::string, wordProbability>& this_word : feature_probabilities)
   {
     for (std::size_t class_iter = 0u; class_iter < input_dataset.size(); class_iter++)
     {
       this_word.second.probabilities[class_iter] += smoothing_constant;
-      float denominator = (float)total_word_count[class_iter] + smoothing_constant*((float)data_indices_to_use[class_iter].size());
+      float denominator = total_freq_count[class_iter] + (smoothing_constant*((float)data_indices_to_use[class_iter].size()));
       this_word.second.probabilities[class_iter] /= denominator;
     }
   }
@@ -211,10 +277,10 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
     auto& data_indices_this_class = data_indices_to_use[class_iter];
     auto& this_class_dataset      = input_dataset.at(class_iter);
 
-    class_probabilities[class_iter] = (float)(this_class_dataset.size())/(float)(total_docs);
+    
     for (std::size_t iter = 0u; iter < data_indices_this_class.size(); iter++)
     {
-      wordProbability this_document_probs(input_dataset.size(), 1.0F);
+      wordProbability this_document_probs(input_dataset.size(), 0.0F);
       std::string current_string = this_class_dataset[data_indices_this_class[iter]];
       std::istringstream token_stream(current_string);
       std::string word;
@@ -224,27 +290,27 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
         word.erase(std::remove_if(word.begin(), word.end(), is_space), word.end());
         if (word.length() > 1u)
         {
-          // change this word to lower case
-          std::transform(word.begin(), word.end(), word.begin(), std::tolower);
-
           // if this word is not in the Bag-of-words container then add and initialize
           if (feature_probabilities.find(word) != feature_probabilities.end())
           {
             auto& this_word_prob = feature_probabilities.at(word).probabilities;
             for (std::size_t word_prob_iter = 0u; word_prob_iter < this_word_prob.size(); word_prob_iter++)
             {
-              this_document_probs.probabilities[word_prob_iter] += std::log(this_word_prob[word_prob_iter]);
+              this_document_probs.probabilities[word_prob_iter] += std::logf(this_word_prob[word_prob_iter]);
             }
           }
         }
       }
 
       // now flag class with maximum probability as the predicted class, initialize class with Spam
-      float max_prob = -100.0F;
+      float max_prob = -10000.0F;
       predicted_labels[class_iter][iter] = identifiers_to_int["spam"];
-      for (std::size_t doc_prob_iter = 0u; doc_prob_iter < this_document_probs.probabilities.size(); doc_prob_iter++)
+      for (int doc_prob_iter = 0u; doc_prob_iter < this_document_probs.probabilities.size(); doc_prob_iter++)
       {
-        this_document_probs.probabilities[doc_prob_iter] += std::log(class_probabilities[class_iter]);
+        // \todo: this calc of class_prob can be moved from here and calculate just once
+        class_probabilities[doc_prob_iter] = (float)(input_dataset.at(doc_prob_iter).size())/(float)(total_docs);
+
+        this_document_probs.probabilities[doc_prob_iter] += std::logf(class_probabilities[doc_prob_iter]);
         if (this_document_probs.probabilities[doc_prob_iter] > max_prob)
         {
           predicted_labels[class_iter][iter] = doc_prob_iter;
@@ -271,10 +337,10 @@ void evaluate_result(const SMS_DATASET_TYPE& input_dataset,
   {
     for (std::size_t index_iter = 0u; index_iter < data_indices_to_use[class_input.first].size(); index_iter++)
     {
-      true_positive_count  += (class_input.first & predicted_labels[class_input.first][index_iter]) > 0?1.0F:0.0F;
-      false_positive_count += (1-class_input.first) & (predicted_labels[class_input.first][index_iter]) > 0?1.0F:0.0F;
-      true_negative_count  += (1-class_input.first) & (1-predicted_labels[class_input.first][index_iter]) >0?1.0F:0.0F;
-      false_negative_count += (class_input.first) & (1-predicted_labels[class_input.first][index_iter]) >0?1.0F:0.0F;
+      true_positive_count  += (class_input.first     & predicted_labels[class_input.first][index_iter])      > 0?1.0F:0.0F;
+      false_positive_count += ((1-class_input.first) & (predicted_labels[class_input.first][index_iter]))    > 0?1.0F:0.0F;
+      true_negative_count  += ((1-class_input.first) & (1-predicted_labels[class_input.first][index_iter]))  > 0?1.0F:0.0F;
+      false_negative_count += ((class_input.first)   & (1-predicted_labels[class_input.first][index_iter]))  > 0?1.0F:0.0F;
     }
   }
 
