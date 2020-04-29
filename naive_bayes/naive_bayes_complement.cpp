@@ -33,15 +33,15 @@ int main()
   // calculate probabilities using just the training data based on term frequency {TF}
   FEATURE_PROBABILITY_TYPE feature_probabilities;
   std::vector<std::vector<int>> predicted_labels;
-  predictionMetric mnb_TF_prediction_metric;
-  predictionMetric mnb_TFIDF_prediction_metric;
+  predictionMetric cnb_TF_prediction_metric;
+  predictionMetric cnb_TFIDF_prediction_metric;
 
   // calculate probabilities using just term-frequency
   calc_TF(sms_dataset_input,
           train_data_indices,
           feature_probabilities);
   
-  calc_word_weights_mnb(sms_dataset_input,
+  calc_word_weights_cnb(sms_dataset_input,
                         train_data_indices,
                         feature_probabilities);
 
@@ -49,21 +49,21 @@ int main()
   predict_class(sms_dataset_input,
                 test_data_indices,
                 feature_probabilities,
-                PREDICTION_TYPE_MULTINOMIAL,
+                PREDICTION_TYPE_COMPLEMENT,
                 predicted_labels);
 
   // evaluate metrics
   evaluate_result(sms_dataset_input,
                   test_data_indices,
                   predicted_labels,
-                  mnb_TF_prediction_metric);
+                  cnb_TF_prediction_metric);
 
   // calculate probabilities of word using term-frequency_inverse-document-frequency
   calc_TF_IDF(sms_dataset_input,
               train_data_indices,
               feature_probabilities);
 
-  calc_word_weights_mnb(sms_dataset_input,
+  calc_word_weights_cnb(sms_dataset_input,
                         train_data_indices,
                         feature_probabilities);
 
@@ -71,25 +71,25 @@ int main()
   predict_class(sms_dataset_input,
                 test_data_indices,
                 feature_probabilities,
-                PREDICTION_TYPE_MULTINOMIAL,
+                PREDICTION_TYPE_COMPLEMENT,
                 predicted_labels);
 
   // evaluate metrics
   evaluate_result(sms_dataset_input,
                   test_data_indices,
                   predicted_labels,
-                  mnb_TFIDF_prediction_metric);
+                  cnb_TFIDF_prediction_metric);
 
   auto end_time = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed = end_time - start_time;
 
-  std::cout << "\nMultinomial-naiveBayes (using TermFrequency)\n";
+  std::cout << "\nComplement-naiveBayes (using TermFrequency)\n";
   std::cout << std::string(20, '=') << '\n';
-  std::cout << mnb_TF_prediction_metric;
+  std::cout << cnb_TF_prediction_metric;
 
-  std::cout << "\nMultinomial-naiveBayes (using TermFrequency-Invese Document Frequency)\n";
+  std::cout << "\nComplement-naiveBayes (using TermFrequency-Invese Document Frequency)\n";
   std::cout << std::string(20, '=') << '\n';
-  std::cout << mnb_TFIDF_prediction_metric;
+  std::cout << cnb_TFIDF_prediction_metric;
 
   std::cout << "\n total time elapsed: " << elapsed.count() << " sec\n";
   return EXIT_SUCCESS;

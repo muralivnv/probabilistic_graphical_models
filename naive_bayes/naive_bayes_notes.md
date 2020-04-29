@@ -53,10 +53,18 @@ When it comes to Text classification things like stop words (at, and,...), punct
   - Grouping together different inflections of the same word as they mean the same thing
 * n-grams 
   - instead of using unigram model we could use bi-gram or n-gram depending on the type of the task at hand 
-* TF-IDF
+* TF-IDF (Term Frequency-Inverse Document Frequency)
+  - instead of simply taking the frequency of the words in a given class, we can model the contribution of a given word in class decision using TF-IDF
+  - if a word appears too much in a  given dataset, then the IDF term will weigh this word low as this word won't be a good indicator in class decision making
+  - This way we can significantly increase classification accuracy by weighing down words that appear much often (like, and/or/an/a...)
+  $$ \hat{P}(x_i|y_i) = count(x_i, y_i) \log(\frac{N}{df_i})$$
+  where,
+  > $N$ is the number of documents  
+  > $df_i$ is the number of documents that word i appeared in N documents
 
 ## References
   - **[Scikit_learn_naiveBayes](https://scikit-learn.org/stable/modules/naive_bayes.html)**
   - **[Stanford_Juarfsky_slides](https://web.stanford.edu/~jurafsky/slp3/slides/7_NB.pdf)**
   - **[CMU_EpXing_slides](https://www.cs.cmu.edu/~epxing/Class/10701-10s/Lecture/lecture5.pdf)**
   - **[Complement_Naive_Bayes](https://people.csail.mit.edu/jrennie/papers/icml03-nb.pdf)**
+  - **[MNB_Text_Categorization_Revisited](https://www.cs.waikato.ac.nz/ml/publications/2004/kibriya_et_al_cr.pdf)**

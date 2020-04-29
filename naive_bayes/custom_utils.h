@@ -11,6 +11,7 @@
 #include <chrono>
 
 #include <cmath>
+#include <cstdint>
 
 struct wordProbability{
   std::vector<float> probabilities;
@@ -32,8 +33,13 @@ struct predictionMetric{
 typedef std::map<int, std::vector<std::string>> SMS_DATASET_TYPE;
 typedef std::map<std::string, wordProbability> FEATURE_PROBABILITY_TYPE;
 typedef std::vector<std::vector<int>>           MAT_INT_2D;
+typedef uint8_t                                 BYTE;
+
+#define PREDICTION_TYPE_MULTINOMIAL     (BYTE)(0)
+#define PREDICTION_TYPE_COMPLEMENT      (BYTE)(1)
 
 static std::map<std::string, int> identifiers_to_int{{"ham", 0}, {"spam", 1}};
+
 
 void read_data(const std::string& data_filename, SMS_DATASET_TYPE& container_to_fill)
 {
@@ -218,15 +224,15 @@ void calc_TF_IDF(const SMS_DATASET_TYPE&  input_dataset,
 
     for (std::size_t class_iter = 0u; class_iter < input_dataset.size(); class_iter++)
     {
-      this_word.second.probabilities[class_iter] = std::logf(feature_probabilities[this_word.first].probabilities[class_iter] + 1.0F) * IDF_weight;
+      this_word.second.probabilities[class_iter] = feature_probabilities[this_word.first].probabilities[class_iter] * IDF_weight;
     }
   }
 }
 
 
-void calc_word_weights(const SMS_DATASET_TYPE&         input_dataset, 
-                       const MAT_INT_2D&               data_indices_to_use,
-                             FEATURE_PROBABILITY_TYPE& feature_probabilities)
+void calc_word_weights_mnb(const SMS_DATASET_TYPE&         input_dataset, 
+                           const MAT_INT_2D&               data_indices_to_use,
+                                 FEATURE_PROBABILITY_TYPE& feature_probabilities)
 {
   std::vector<float> total_freq_count(input_dataset.size(), 0.0F);
 
@@ -254,30 +260,61 @@ void calc_word_weights(const SMS_DATASET_TYPE&         input_dataset,
 }
 
 
+void calc_word_weights_cnb(const SMS_DATASET_TYPE&         input_dataset, 
+                           const MAT_INT_2D&               data_indices_to_use,
+                                 FEATURE_PROBABILITY_TYPE& feature_probabilities)
+{
+  std::vector<float> per_class_word_weight_sum(input_dataset.size(), 0.0F);
+
+  for (const auto& word: feature_probabilities)
+  {
+    for (std::size_t class_iter = 0u; class_iter < word.second.probabilities.size(); class_iter++)
+    {
+      per_class_word_weight_sum[class_iter] += word.second.probabilities[class_iter];
+    }
+  }
+
+  // now divide each word in each class with the total number of words in it's class
+  // there is a chance we might encounter absolutely zero probabilities for a word in any class
+  // for this use laplace smoothing
+  const float smoothing_constant = 1e-4F;
+  for (std::pair<const std::string, wordProbability>& this_word : feature_probabilities)
+  {
+    const std::vector<float> initial_word_weight = this_word.second.probabilities;
+
+    for (std::size_t class_iter = 0u; class_iter < input_dataset.size(); class_iter++)
+    {
+      std::size_t complement_class_idx = 1u-class_iter;
+
+      this_word.second.probabilities[class_iter] = initial_word_weight[complement_class_idx] + smoothing_constant;
+      float denominator = per_class_word_weight_sum[complement_class_idx] + (smoothing_constant*((float)data_indices_to_use[complement_class_idx].size()));
+      this_word.second.probabilities[class_iter] /= denominator;
+    }
+  }
+}
+
+
 void predict_class(const SMS_DATASET_TYPE&          input_dataset,
                    const MAT_INT_2D&                data_indices_to_use,
                    const FEATURE_PROBABILITY_TYPE&  feature_probabilities,
+                   const BYTE                       prediction_type,     
                          MAT_INT_2D&                predicted_labels)
 {
   auto is_space = [](char c){ return (c == ' ');};
   std::vector<float> class_probabilities(input_dataset.size());
   predicted_labels = MAT_INT_2D(input_dataset.size());
 
-  std::size_t total_docs = 0u;
-
   // calculate class_probabilities
-  for (auto& class_type: input_dataset)
-  { 
-    total_docs += class_type.second.size(); 
-    predicted_labels[class_type.first] = std::vector<int>(data_indices_to_use[class_type.first].size(), 0);
-  }
+  std::size_t total_docs = data_indices_to_use[0].size() + data_indices_to_use[1].size();
+  class_probabilities[0] = std::logf((float)data_indices_to_use[0].size() / (float)total_docs);
+  class_probabilities[1] = std::logf((float)data_indices_to_use[1].size() / (float)total_docs);
 
   for (int class_iter = 0u; class_iter < data_indices_to_use.size(); class_iter++)
   {
     auto& data_indices_this_class = data_indices_to_use[class_iter];
     auto& this_class_dataset      = input_dataset.at(class_iter);
+    predicted_labels[class_iter]  = std::vector<int>(data_indices_to_use[class_iter].size(), 0);
 
-    
     for (std::size_t iter = 0u; iter < data_indices_this_class.size(); iter++)
     {
       wordProbability this_document_probs(input_dataset.size(), 0.0F);
@@ -303,18 +340,38 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
       }
 
       // now flag class with maximum probability as the predicted class, initialize class with Spam
-      float max_prob = -10000.0F;
+      float best_prob = -10000.0F;
+
+      // for the complement class we need to select the class that has least probability in the end for a document
+      if (prediction_type == PREDICTION_TYPE_COMPLEMENT)
+      { best_prob = 1000.0F; }
+
       predicted_labels[class_iter][iter] = identifiers_to_int["spam"];
       for (int doc_prob_iter = 0u; doc_prob_iter < this_document_probs.probabilities.size(); doc_prob_iter++)
       {
-        // \todo: this calc of class_prob can be moved from here and calculate just once
-        class_probabilities[doc_prob_iter] = (float)(input_dataset.at(doc_prob_iter).size())/(float)(total_docs);
+        this_document_probs.probabilities[doc_prob_iter] += class_probabilities[doc_prob_iter];
 
-        this_document_probs.probabilities[doc_prob_iter] += std::logf(class_probabilities[doc_prob_iter]);
-        if (this_document_probs.probabilities[doc_prob_iter] > max_prob)
+        bool select_this_class = false;
+        switch(prediction_type)
+        {
+          case (PREDICTION_TYPE_MULTINOMIAL):
+          {
+            if (this_document_probs.probabilities[doc_prob_iter] > best_prob)
+            { select_this_class = true; }
+          }
+          break;
+          case(PREDICTION_TYPE_COMPLEMENT):
+          {
+            if (this_document_probs.probabilities[doc_prob_iter] < best_prob)
+            { select_this_class = true; }
+          }
+          break;
+        }
+
+        if (select_this_class == true)
         {
           predicted_labels[class_iter][iter] = doc_prob_iter;
-          max_prob = this_document_probs.probabilities[doc_prob_iter];
+          best_prob = this_document_probs.probabilities[doc_prob_iter];
         }
       }
     }
