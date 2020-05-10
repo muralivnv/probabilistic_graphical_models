@@ -40,8 +40,16 @@ typedef uint8_t                                 BYTE;
 
 static std::unordered_map<std::string, int> identifiers_to_int{{"ham", 0}, {"spam", 1}};
 
-
-void read_data(const std::string& data_filename, SMS_DATASET_TYPE& container_to_fill)
+/*! 
+*  \brief  Given a filename and a container to fill this function will read the contents of the SMS
+*          dataset and fills the container with the contents
+*
+*  \param  data_filename        name of the file to read
+*  \param  container_to_fill    container that will be use to fill the contents of the input text file
+* 
+*/
+void read_data(const std::string& data_filename, 
+                     SMS_DATASET_TYPE& container_to_fill)
 {
   std::ifstream sms_dataset_obj(data_filename, std::ios_base::in);
 
@@ -76,6 +84,13 @@ void read_data(const std::string& data_filename, SMS_DATASET_TYPE& container_to_
 }
 
 
+/*! 
+*  \brief  Given the SMS dataset, key-value pairs, this function will cleans up the dataset by removing  
+*          punctuation marks, digits, invalid chars
+*
+*  \param  dataset       hash map with key being class and value being vector of strings to process
+*
+*/
 void process_data(SMS_DATASET_TYPE& dataset)
 {
   auto punct_digit = [](char c){return (std::ispunct(static_cast<unsigned char>(c)) || std::isdigit(c));};
@@ -97,6 +112,13 @@ void process_data(SMS_DATASET_TYPE& dataset)
 }
 
 
+/*! 
+*  \brief This function will generate random permutations of a given length 
+*
+*  \param permutations_out        container to fill the permuations 
+*  \param len                     number of permutations 
+*
+*/
 void generate_permutations(std::vector<int>& permutations_out, const std::size_t len)
 {
   // first fill permutations_out 
@@ -109,6 +131,16 @@ void generate_permutations(std::vector<int>& permutations_out, const std::size_t
 }
 
 
+/*! 
+*  \brief Given a dataset, this function will split the dataset into training and test set 
+*         using the specified training fraction size 
+*
+*  \param  dataset_container    dataset to split
+*  \param  train_frac           fraction of training set size, values from 0.0 to 1.0
+*  \param  train_data_indices   data indices of the splitted training data of size train_frac * dataset_len
+*  \param  test_data_indices    data indices of the splitted testing data of size (1.0 - train_frac)* dataset_len
+*
+*/  
 void train_test_split(const SMS_DATASET_TYPE& dataset_container, 
                       const float train_frac, 
                       MAT_INT_2D& train_data_indices, 
@@ -134,8 +166,17 @@ void train_test_split(const SMS_DATASET_TYPE& dataset_container,
 }
 
 
-void calc_TF(const SMS_DATASET_TYPE&      input_dataset,
-             const MAT_INT_2D&            data_indices_to_use,
+/*! 
+*  \brief Given a dataset and the training indices this function will calculate term frequencies
+*         of each over the entire training dataset in a given class 
+*
+*  \param  input_dataset           SMS dataset to use
+*  \param  data_indices_to_use     training data indices to use to calculate term frequencies
+*  \param  feature_probabilities   calculated term frequencies stored in a hash-map with key being word, value being word-counts 
+*
+*/
+void calc_TF(const SMS_DATASET_TYPE&         input_dataset,
+             const MAT_INT_2D&               data_indices_to_use,
                    FEATURE_PROBABILITY_TYPE& feature_probabilities)
 {
   auto is_space = [](char c){ return (c == ' ');};
@@ -170,8 +211,17 @@ void calc_TF(const SMS_DATASET_TYPE&      input_dataset,
 }
 
 
-void calc_TF_IDF(const SMS_DATASET_TYPE&  input_dataset,
-                 const MAT_INT_2D&        data_indices_to_use,
+/*! 
+*  \brief Given a dataset and the training indices this function will calculate 
+*         term-frequency-inverse-document-frequency (TF-IDF) of a given word
+*
+*  \param  input_dataset          SMS dataset to use
+*  \param  data_indices_to_use    training data indices to use to calculate term frequencies
+*  \param  feature_probabilities  calculated TF-IDF values stored in a hash-map with key being word, value being word-counts 
+*
+*/
+void calc_TF_IDF(const SMS_DATASET_TYPE&         input_dataset,
+                 const MAT_INT_2D&               data_indices_to_use,
                        FEATURE_PROBABILITY_TYPE& feature_probabilities)
 {
   std::size_t number_doc = 0u;
@@ -230,6 +280,16 @@ void calc_TF_IDF(const SMS_DATASET_TYPE&  input_dataset,
 }
 
 
+/*! 
+*  \brief Given dataset with training data indices and calculated term-frequencies (TF/TF-IDF) this function
+*         will calculate word-weights using normal Multinomial assumption for each word (Multinomial Naive Bayes)
+*
+*  \param  input_dataset          SMS dataset used to calculate TF/TF-IDF
+*  \param  data_indices_to_use    data indices used to calculate TF/TF-IDF
+*  \param  feature_probabilities  calculated word-weights. This variable should contain 
+*                                 TF/TF-IDF values pre-calculated and stored inside
+* 
+*/
 void calc_word_weights_mnb(const SMS_DATASET_TYPE&         input_dataset, 
                            const MAT_INT_2D&               data_indices_to_use,
                                  FEATURE_PROBABILITY_TYPE& feature_probabilities)
@@ -260,6 +320,16 @@ void calc_word_weights_mnb(const SMS_DATASET_TYPE&         input_dataset,
 }
 
 
+/*! 
+*  \brief Given dataset with training data indices and calculated term-frequencies (TF/TF-IDF) this function
+*         will calculate word-weights using complement class for each word (Complement Naive Bayes)
+*
+*  \param  input_dataset          SMS dataset used to calculate TF/TF-IDF
+*  \param  data_indices_to_use    data indices used to calculate TF/TF-IDF
+*  \param  feature_probabilities  calculated word-weights. This variable should contain 
+*                                 TF/TF-IDF values pre-calculated and stored inside
+* 
+*/
 void calc_word_weights_cnb(const SMS_DATASET_TYPE&         input_dataset, 
                            const MAT_INT_2D&               data_indices_to_use,
                                  FEATURE_PROBABILITY_TYPE& feature_probabilities)
@@ -294,6 +364,17 @@ void calc_word_weights_cnb(const SMS_DATASET_TYPE&         input_dataset,
 }
 
 
+/*! 
+*  \brief Given dataset with test data indices and calculated word probabilities this function
+*         will predicted the class of each sentence using Naive Bayes assumption
+*
+*  \param  input_dataset          SMS dataset to use
+*  \param  data_indices_to_use    data indices to perform prediction on
+*  \param  feature_probabilities  calculated word-weights
+*  \param  prediction_type        flag to determine the prediction type, Multinomial (0)/ Complement (1)
+*  \param  predicted_labels       final predicted labels using the given prediction_type
+* 
+*/
 void predict_class(const SMS_DATASET_TYPE&          input_dataset,
                    const MAT_INT_2D&                data_indices_to_use,
                    const FEATURE_PROBABILITY_TYPE&  feature_probabilities,
@@ -379,6 +460,16 @@ void predict_class(const SMS_DATASET_TYPE&          input_dataset,
 }
 
 
+/*! 
+*  \brief Given dataset with data indices with indices that the prediction was performed on and the 
+*         predicted labels, this function will calculate classifier metrics (Accuracy, Recall, Precision, F1-Score)
+*
+*  \param  input_dataset          SMS dataset used to perform predictions
+*  \param  data_indices_to_use    data indices used to perform predictions
+*  \param  predicted_labels       predicted class labels
+*  \param  evaluated_metric       evaluated metric (Accuracy, Recall, Precision, F1-Score)
+* 
+*/
 void evaluate_result(const SMS_DATASET_TYPE& input_dataset,
                      const MAT_INT_2D&        data_indices_to_use,
                      const MAT_INT_2D&        predicted_labels,
