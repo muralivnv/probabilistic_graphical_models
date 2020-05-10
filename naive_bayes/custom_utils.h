@@ -2,7 +2,7 @@
 #define _CUSTOM_UTILS_H_
 
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -30,15 +30,15 @@ struct predictionMetric{
   { this->accuracy = 0.0F; this->f1_score = 0.0F; this->precision = 0.0F; this->recall = 0.0F;  }
 };
 
-typedef std::map<int, std::vector<std::string>> SMS_DATASET_TYPE;
-typedef std::map<std::string, wordProbability> FEATURE_PROBABILITY_TYPE;
+typedef std::unordered_map<int, std::vector<std::string>> SMS_DATASET_TYPE;
+typedef std::unordered_map<std::string, wordProbability>  FEATURE_PROBABILITY_TYPE;
 typedef std::vector<std::vector<int>>           MAT_INT_2D;
 typedef uint8_t                                 BYTE;
 
 #define PREDICTION_TYPE_MULTINOMIAL     (BYTE)(0)
 #define PREDICTION_TYPE_COMPLEMENT      (BYTE)(1)
 
-static std::map<std::string, int> identifiers_to_int{{"ham", 0}, {"spam", 1}};
+static std::unordered_map<std::string, int> identifiers_to_int{{"ham", 0}, {"spam", 1}};
 
 
 void read_data(const std::string& data_filename, SMS_DATASET_TYPE& container_to_fill)
@@ -175,7 +175,7 @@ void calc_TF_IDF(const SMS_DATASET_TYPE&  input_dataset,
                        FEATURE_PROBABILITY_TYPE& feature_probabilities)
 {
   std::size_t number_doc = 0u;
-  std::map<std::string, int> word_in_doc_count;
+  std::unordered_map<std::string, int> word_in_doc_count;
   
   feature_probabilities.clear();
   FEATURE_PROBABILITY_TYPE().swap(feature_probabilities);
@@ -191,7 +191,7 @@ void calc_TF_IDF(const SMS_DATASET_TYPE&  input_dataset,
       std::istringstream token_stream(current_string);
       std::string word;
 
-      std::map<std::string, int> local_map;
+      std::unordered_map<std::string, int> local_map;
       while(std::getline(token_stream, word, ' '))
       {
         word.erase(std::remove_if(word.begin(), word.end(), std::isspace), word.end());
