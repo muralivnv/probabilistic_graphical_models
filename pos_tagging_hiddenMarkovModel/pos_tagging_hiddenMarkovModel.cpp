@@ -54,7 +54,7 @@ int main()
   calc_observation_probabilities(sentences, labels, tags, train_indices, tag_unigram_count, observation_prob);
 
   MAT<float, 2u, n_tags> start_end_prob;
-  calc_start_end_probabilities(starting_tag_count, ending_tag_count, train_indices.size(), start_end_prob);
+  calc_start_end_probabilities(starting_tag_count, ending_tag_count, train_indices.size(), tag_unigram_count, start_end_prob);
 
   DMAT_UINT predicted_pos_tags;
   viterbi_decode(sentences, test_indices, state_transition_prob, observation_prob, start_end_prob, predicted_pos_tags);

@@ -155,10 +155,4 @@ void insert_if_not_exist(HASH_MAP<KeyType, ValueType>& container,
   { container.insert(std::make_pair(key, std::forward<ValueType>(value_to_insert))); }
 }
 
-
-inline void to_lower_str(std::string& str)
-{
-  std::transform(str.begin(), str.end(), str.begin(), [](char c){ return (char)std::tolower(c);});
-}
-
 #endif

@@ -79,10 +79,10 @@ void bigram_count(const DMAT_STR&                  sentence_labels,
 
 template<size_t NTags>
 void starting_ending_tag_count(const DMAT_STR&             sentence_labels,
-                               const VEC<string, NTags>& common_tags, 
+                               const VEC<string, NTags>&   common_tags, 
                                const DVEC_UINT&            train_data_indices,
-                                     VEC<uint_t, NTags>& starting_tag_counts,
-                                     VEC<uint_t, NTags>& ending_tag_counts)
+                                     VEC<uint_t, NTags>&   starting_tag_counts,
+                                     VEC<uint_t, NTags>&   ending_tag_counts)
 {
 
   starting_tag_counts.fill(0u);
@@ -111,7 +111,7 @@ void starting_ending_tag_count(const DMAT_STR&             sentence_labels,
 
 
 template <size_t NTags>
-void calc_transition_probabilities(const VEC<uint_t, NTags>&         tag_unigram_count, 
+void calc_transition_probabilities(const VEC<uint_t, NTags>&        tag_unigram_count, 
                                    const MAT<uint_t, NTags, NTags>& tag_bigram_count, 
                                          MAT<float, NTags, NTags>&  state_transition_prob)
 {
@@ -123,7 +123,8 @@ void calc_transition_probabilities(const VEC<uint_t, NTags>&         tag_unigram
     for (uint_t tag_iter_inner = 0u; tag_iter_inner < tag_unigram_count.size(); tag_iter_inner++)
     {
       // $P(tag_2|tag_1) = \frac{Count(tag_2, tag_1)}{Count(tag_1)}$
-      state_transition_prob[tag_iter_inner][tag_iter_outer] = ((float)tag_bigram_count[tag_iter_outer][tag_iter_inner])/(float)tag_unigram_count[tag_iter_outer];
+      state_transition_prob[tag_iter_outer][tag_iter_inner] = ((float)tag_bigram_count[tag_iter_outer][tag_iter_inner])
+                                                              /(float)tag_unigram_count[tag_iter_outer];
     }
   }
 }
@@ -155,7 +156,7 @@ void calc_observation_probabilities(const DMAT_STR&                            s
       const uint_t this_word_tag_idx = common_tags_map.at(this_word_tag);
       const float this_tag_inverse_count = 1.0F/((float)tag_unigram_count[this_word_tag_idx]);
       
-      to_lower_str(this_word);
+      // to_lower_str(this_word);
       insert_if_not_exist(observation_prob, this_word, {});
 
       observation_prob.at(this_word)[this_word_tag_idx] += this_tag_inverse_count;
@@ -168,6 +169,7 @@ template <size_t NTags>
 void calc_start_end_probabilities(const VEC<uint_t, NTags>&    starting_tag_counts, 
                                   const VEC<uint_t, NTags>&    ending_tag_counts,
                                   const size_t                 training_set_len,
+                                  const VEC<uint_t, NTags>&    tag_unigram_count,
                                         MAT<float, 2u, NTags>& start_end_prob)
 {
   const float train_len_inverse = 1.0F/(float)(training_set_len);
@@ -177,7 +179,7 @@ void calc_start_end_probabilities(const VEC<uint_t, NTags>&    starting_tag_coun
   for (size_t tag_iter = 0u; tag_iter < starting_tag_counts.size(); tag_iter++)
   {
     start_end_prob[0u][tag_iter] = (float)(starting_tag_counts[tag_iter])*train_len_inverse;
-    start_end_prob[1u][tag_iter] = (float)(ending_tag_counts[tag_iter])*train_len_inverse;
+    start_end_prob[1u][tag_iter] = (float)(ending_tag_counts[tag_iter])/tag_unigram_count[tag_iter];
   }
 }
 
@@ -211,7 +213,7 @@ void viterbi_decode(const DMAT_STR&                            sentences,
       uint_t max_prob_prev_state_idx = 0u;
 
       string this_word = this_sentence[0];
-      to_lower_str(this_word);
+      // to_lower_str(this_word);
       for (size_t tag_index = 0u; tag_index < NTags; tag_index++)
       {
         // unknown word
@@ -225,7 +227,7 @@ void viterbi_decode(const DMAT_STR&                            sentences,
       for (size_t word_iter = 1u; word_iter < this_sentence.size(); word_iter++)
       {
         this_word = this_sentence[word_iter];
-        to_lower_str(this_word);
+        // to_lower_str(this_word);
         
         // unknown word
         if (observation_prob.find(this_word) == observation_prob.end())
@@ -238,7 +240,7 @@ void viterbi_decode(const DMAT_STR&                            sentences,
 
           for (uint_t prev_state_idx = 0u; prev_state_idx < NTags; prev_state_idx++)
           {
-            float cur_state_prob = transition_prob[cur_state_idx][prev_state_idx]
+            float cur_state_prob = transition_prob[prev_state_idx][cur_state_idx]
                                   * (observation_prob.at(this_word)[cur_state_idx]);
             
             cur_state_prob *= *(prev_state_prob_iterator + prev_state_idx);
