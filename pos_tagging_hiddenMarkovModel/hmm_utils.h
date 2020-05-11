@@ -201,6 +201,8 @@ void viterbi_decode(const DMAT_STR&                            sentences,
     if (n_obs > 0u)
     { 
       predicted_pos_tags[test_index] = DVEC_UINT(n_obs, 0u);
+      
+      vector<vector<ViterbiPathNode>> viterbi_path(n_obs, vector<ViterbiPathNode>(NTags));
 
       // calculate probabilities for the first variable using starting probabilities
       VEC<float, NTags> prev_state_prob;
@@ -209,72 +211,76 @@ void viterbi_decode(const DMAT_STR&                            sentences,
       typename VEC<float, NTags>::iterator this_state_prob_iterator = begin(this_state_prob);
 
       float cur_obs_max_state_prob   = -10.0F;
-      uint_t max_prob_cur_state_idx  = 0u;
       uint_t max_prob_prev_state_idx = 0u;
 
       string this_word = this_sentence[0];
-      // to_lower_str(this_word);
+
+      // starting state
       for (size_t tag_index = 0u; tag_index < NTags; tag_index++)
       {
         // unknown word
         if (observation_prob.find(this_word) != observation_prob.end())
         { 
-          prev_state_prob[tag_index] =  start_end_prob[0u][tag_index]               /* P (Y   | start) */
-                                       *(observation_prob.at(this_word)[tag_index]); /* P (X_1 | Y)     */
+          viterbi_path[0u][tag_index].prev_state = 0u;
+          viterbi_path[0u][tag_index].max_prob =  start_end_prob[0u][tag_index]               /* P (Y   | start) */
+                                                 *(observation_prob.at(this_word)[tag_index]); /* P (X_1 | Y)     */
         }
       }
 
+      // transition states
       for (size_t word_iter = 1u; word_iter < this_sentence.size(); word_iter++)
       {
         this_word = this_sentence[word_iter];
-        // to_lower_str(this_word);
-        
+      
         // unknown word
         if (observation_prob.find(this_word) == observation_prob.end())
         { continue; }
 
         for (uint_t cur_state_idx = 0u; cur_state_idx < NTags; cur_state_idx++)
         {
-          auto cur_state_iterator = this_state_prob_iterator + cur_state_idx;
-          *cur_state_iterator = 0.0F;
+          cur_obs_max_state_prob  = viterbi_path[word_iter-1u][0].max_prob 
+                                    * transition_prob[0][cur_state_idx];
+          max_prob_prev_state_idx = 0u;
 
-          for (uint_t prev_state_idx = 0u; prev_state_idx < NTags; prev_state_idx++)
+          for (uint_t prev_state_idx = 1u; prev_state_idx < NTags; prev_state_idx++)
           {
-            float cur_state_prob = transition_prob[prev_state_idx][cur_state_idx]
-                                  * (observation_prob.at(this_word)[cur_state_idx]);
-            
-            cur_state_prob *= *(prev_state_prob_iterator + prev_state_idx);
+            float cur_state_prob = viterbi_path[word_iter-1u][prev_state_idx].max_prob 
+                                  * transition_prob[prev_state_idx][cur_state_idx];
 
-            if (cur_state_prob > *cur_state_iterator)
+            if (cur_obs_max_state_prob < cur_state_prob)
             {
-              *cur_state_iterator = cur_state_prob;
-            }
-
-            if (cur_obs_max_state_prob < *cur_state_iterator)
-            {
-              cur_obs_max_state_prob  = *cur_state_iterator;
-              max_prob_cur_state_idx  = cur_state_idx;
+              cur_obs_max_state_prob  = cur_state_prob;
               max_prob_prev_state_idx = prev_state_idx;
             }
           }
-        }
-        predicted_pos_tags[test_index][word_iter]     = max_prob_cur_state_idx;
-        if (word_iter == 1u)
-        { predicted_pos_tags[test_index][word_iter-1] = max_prob_prev_state_idx; } 
 
-        cur_obs_max_state_prob = -10.0F;
-        max_prob_cur_state_idx = 0u;
-        max_prob_prev_state_idx = 0u;
-        
-        // swap iterator
-        auto temp_iterator       = prev_state_prob_iterator;
-        prev_state_prob_iterator = this_state_prob_iterator;
-        this_state_prob_iterator = temp_iterator;
+          viterbi_path[word_iter][cur_state_idx].prev_state = max_prob_prev_state_idx;
+          viterbi_path[word_iter][cur_state_idx].max_prob   = cur_obs_max_state_prob * observation_prob.at(this_word)[cur_state_idx];  
+        }
       }
 
-      // calculate ending state probability
-      // final probability is
-      // float final_prob = *(prev_state_prob_iterator + max_prob_cur_state_idx) * start_end_prob[1u][max_prob_cur_state_idx];
+      // ending state
+      typename vector<ViterbiPathNode>::iterator row_iterator = viterbi_path.back().begin();
+      float final_best_prob  = -10.0F;
+      uint_t best_last_state = 0u; 
+      for (uint_t tag_index = 0u; tag_index < NTags; tag_index++)
+      {
+        (row_iterator + tag_index)->max_prob *= start_end_prob[1u][tag_index];
+        if (final_best_prob < (row_iterator + tag_index)->max_prob)
+        {
+          final_best_prob = (row_iterator + tag_index)->max_prob;
+          best_last_state = tag_index;
+        }
+      }
+
+      predicted_pos_tags[test_index].back() = best_last_state;
+
+      // back track viterbi path based on the last best state
+      for (int state_iter = (int)n_obs-2; state_iter >= 0; state_iter--)
+      {
+        predicted_pos_tags[test_index][state_iter] = viterbi_path[state_iter+1][best_last_state].prev_state;
+        best_last_state = predicted_pos_tags[test_index][state_iter];
+      }
     }
   }
 }

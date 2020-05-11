@@ -21,4 +21,10 @@ using DMAT_UINT  = std::vector<std::vector<uint_t>>;          // dynamic matrix
 template <typename KeyType, typename ValueType>
 using HASH_MAP = std::unordered_map<KeyType, ValueType>;
 
+
+struct ViterbiPathNode{
+  uint_t prev_state = 0u;
+  float max_prob = 0.0F;
+};
+
 #endif
