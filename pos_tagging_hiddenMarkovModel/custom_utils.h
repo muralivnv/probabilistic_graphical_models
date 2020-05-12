@@ -17,6 +17,8 @@
 
 #include "custom_typedefs.h"
 
+#include "boost/algorithm/string.hpp"
+
 using std::vector;
 using std::string;
 
@@ -153,6 +155,12 @@ void insert_if_not_exist(HASH_MAP<KeyType, ValueType>& container,
 {
   if (container.find(key) == container.end())
   { container.insert(std::make_pair(key, std::forward<ValueType>(value_to_insert))); }
+}
+
+
+inline void to_lower_str(std::string& str)
+{
+  std::transform(str.begin(), str.end(), str.begin(), [](char c){ return (char)std::tolower(c);});
 }
 
 #endif
