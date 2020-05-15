@@ -17,19 +17,8 @@
 
 #include "custom_typedefs.h"
 
-#include "boost/algorithm/string.hpp"
-
 using std::vector;
 using std::string;
-
-
-void strip_str(std::string& string_to_str)
-{
-  static const char* whitespace = " \t\n\f\v";
-
-  string_to_str.erase(0, string_to_str.find_first_not_of(whitespace));
-  string_to_str.erase(string_to_str.find_last_not_of(whitespace) + 1);
-}
 
 
 template <std::size_t TagLen>
@@ -158,14 +147,25 @@ void insert_if_not_exist(HASH_MAP<KeyType, ValueType>& container,
 }
 
 
+void strip_str(std::string& string_to_str)
+{
+  static const char* whitespace = " \t\n\f\v";
+
+  string_to_str.erase(0, string_to_str.find_first_not_of(whitespace));
+  string_to_str.erase(string_to_str.find_last_not_of(whitespace) + 1);
+}
+
+
 inline void to_lower_str(std::string& str)
 {
   std::transform(str.begin(), str.end(), str.begin(), [](char c){ return (char)std::tolower(c);});
 }
 
+
 // implementation taken from
 // https://stackoverflow.com/questions/9411823/fast-log2float-x-implementation-c/29045715
-inline float fast_log2(float val) {
+inline float fast_log2(float val)
+{
   union { float val; int32_t x; } u = { val };
   register float log_2 = (float)(((u.x >> 23) & 255) - 128);              
   u.x   &= ~(255 << 23);
