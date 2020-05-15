@@ -232,8 +232,8 @@ void viterbi_decode(const DMAT_STR&                                    sentences
         if (observation_prob.find(this_word) != observation_prob.end())
         { 
           viterbi_path[0u][tag_index].prev_state = 0u;
-          viterbi_path[0u][tag_index].max_prob =  start_end_prob[0u][tag_index]               /* P (Y   | start) */
-                                                 *(observation_prob.at(this_word)[tag_index]); /* P (X_1 | Y)     */
+          viterbi_path[0u][tag_index].max_prob =   fast_log2(start_end_prob[0u][tag_index])               /* P (Y   | start) */
+                                                 + fast_log2(observation_prob.at(this_word)[tag_index]); /* P (X_1 | Y)     */
         }
       }
 
@@ -250,13 +250,13 @@ void viterbi_decode(const DMAT_STR&                                    sentences
         for (uint_t cur_state_idx = 0u; cur_state_idx < NHiddenStates; cur_state_idx++)
         {
           cur_obs_max_state_prob  = viterbi_path[word_iter-1u][0].max_prob 
-                                    * transition_prob[0][cur_state_idx];
+                                    + fast_log2(transition_prob[0][cur_state_idx]);
           max_prob_prev_state_idx = 0u;
 
           for (uint_t prev_state_idx = 1u; prev_state_idx < NHiddenStates; prev_state_idx++)
           {
             float cur_state_prob = viterbi_path[word_iter-1u][prev_state_idx].max_prob 
-                                  * transition_prob[prev_state_idx][cur_state_idx];
+                                  + fast_log2(transition_prob[prev_state_idx][cur_state_idx]);
 
             if (cur_obs_max_state_prob < cur_state_prob)
             {
@@ -266,7 +266,7 @@ void viterbi_decode(const DMAT_STR&                                    sentences
           }
 
           viterbi_path[word_iter][cur_state_idx].prev_state = max_prob_prev_state_idx;
-          viterbi_path[word_iter][cur_state_idx].max_prob   = cur_obs_max_state_prob * observation_prob.at(this_word)[cur_state_idx];  
+          viterbi_path[word_iter][cur_state_idx].max_prob   = cur_obs_max_state_prob + log2f(observation_prob.at(this_word)[cur_state_idx]);  
         }
       }
 
@@ -276,7 +276,7 @@ void viterbi_decode(const DMAT_STR&                                    sentences
       uint_t best_last_state = 0u; 
       for (uint_t tag_index = 0u; tag_index < NHiddenStates; tag_index++)
       {
-        (row_iterator + tag_index)->max_prob *= start_end_prob[1u][tag_index];
+        (row_iterator + tag_index)->max_prob += fast_log2(start_end_prob[1u][tag_index]);
         if (final_best_prob < (row_iterator + tag_index)->max_prob)
         {
           final_best_prob = (row_iterator + tag_index)->max_prob;

@@ -163,4 +163,15 @@ inline void to_lower_str(std::string& str)
   std::transform(str.begin(), str.end(), str.begin(), [](char c){ return (char)std::tolower(c);});
 }
 
+// implementation taken from
+// https://stackoverflow.com/questions/9411823/fast-log2float-x-implementation-c/29045715
+inline float fast_log2(float val) {
+  union { float val; int32_t x; } u = { val };
+  register float log_2 = (float)(((u.x >> 23) & 255) - 128);              
+  u.x   &= ~(255 << 23);
+  u.x   += 127 << 23;
+  log_2 += ((-0.3358287811f) * u.val + 2.0f) * u.val  -0.65871759316667f; 
+  return log_2;
+} 
+
 #endif
