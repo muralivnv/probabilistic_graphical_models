@@ -60,10 +60,11 @@ int main()
   viterbi_decode(sentences, test_indices, state_transition_prob, observation_prob, start_end_prob, predicted_pos_tags);
 
   float accuracy = evaluate_accuracy(labels, test_indices, predicted_pos_tags);
-  std::cout << "prediction accuracy: " << accuracy << '\n';
+  std::cout << "prediction_accuracy: " << accuracy << '\n';
 
   auto end_time = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed = end_time - start_time;
-  std::cout << "total elapsed time: " << elapsed.count() << " sec\n";
+  std::cout << "total elapsed time: " << elapsed.count() << " sec";
+
   return EXIT_SUCCESS;
 }

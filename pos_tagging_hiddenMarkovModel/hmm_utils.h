@@ -32,11 +32,11 @@ static HASH_MAP<string, uint_t> common_tags_map;
 *  \param[out]  tag_unigram_count    calculated tag counts, size 1 x n_tags
 *
 */
-template<size_t NHiddenStates>
-void unigram_count(const DMAT_STR&                    dataset_tags,
-                   const VEC<string, NHiddenStates>&  common_tags,
-                   const DVEC_UINT&                   train_data_indices,
-                         VEC<uint_t, NHiddenStates>&  tag_unigrams_count)
+template<size_t NStates>
+void unigram_count(const DMAT_STR&              dataset_tags,
+                   const VEC<string, NStates>&  common_tags,
+                   const DVEC_UINT&             train_data_indices,
+                         VEC<uint_t, NStates>&  tag_unigrams_count)
 {
   tag_unigrams_count.fill(0u);
 
@@ -69,11 +69,11 @@ void unigram_count(const DMAT_STR&                    dataset_tags,
 *  \param[out]  tag_bigram_count     calculated bigram tag count, size n_tags x n_tags
 *
 */
-template <size_t NHiddenStates>
-void bigram_count(const DMAT_STR&                                  dataset_tags,
-                  const VEC<string, NHiddenStates>&                common_tags,
-                  const DVEC_UINT&                                 train_data_indices,
-                        MAT<uint_t, NHiddenStates, NHiddenStates>& tag_bigram_count)
+template <size_t NStates>
+void bigram_count(const DMAT_STR&                      dataset_tags,
+                  const VEC<string, NStates>&          common_tags,
+                  const DVEC_UINT&                     train_data_indices,
+                        MAT<uint_t, NStates, NStates>& tag_bigram_count)
 {
   tag_bigram_count.fill({});
 
@@ -109,12 +109,12 @@ void bigram_count(const DMAT_STR&                                  dataset_tags,
 *  \param[out]  ending_tag_counts    output of the overall tag count that appear at the end of sentence, size 1 x n_tags
 *
 */
-template<size_t NHiddenStates>
-void starting_ending_tag_count(const DMAT_STR&                     dataset_tags,
-                               const VEC<string, NHiddenStates>&   common_tags, 
-                               const DVEC_UINT&                    train_data_indices,
-                                     VEC<uint_t, NHiddenStates>&   starting_tag_counts,
-                                     VEC<uint_t, NHiddenStates>&   ending_tag_counts)
+template<size_t NStates>
+void starting_ending_tag_count(const DMAT_STR&               dataset_tags,
+                               const VEC<string, NStates>&   common_tags, 
+                               const DVEC_UINT&              train_data_indices,
+                                     VEC<uint_t, NStates>&   starting_tag_counts,
+                                     VEC<uint_t, NStates>&   ending_tag_counts)
 {
 
   starting_tag_counts.fill(0u);
@@ -150,10 +150,10 @@ void starting_ending_tag_count(const DMAT_STR&                     dataset_tags,
 *  \param[out]  state_transition_prob   calculated state transition probabilities of size n_tags x n_tags
 *
 */
-template <size_t NHiddenStates>
-void calc_transition_probabilities(const VEC<uint_t, NHiddenStates>&                tag_unigram_count, 
-                                   const MAT<uint_t, NHiddenStates, NHiddenStates>& tag_bigram_count, 
-                                         MAT<float, NHiddenStates, NHiddenStates>&  state_transition_prob)
+template <size_t NStates>
+void calc_transition_probabilities(const VEC<uint_t, NStates>&          tag_unigram_count, 
+                                   const MAT<uint_t, NStates, NStates>& tag_bigram_count, 
+                                         MAT<float, NStates, NStates>&  state_transition_prob)
 {
   // initialize state-transition probabilities to 0.0F
   state_transition_prob.fill({});
@@ -181,13 +181,13 @@ void calc_transition_probabilities(const VEC<uint_t, NHiddenStates>&            
 *  \param[out]  observation_prob       calculated observation probabilities, P (Obs | State)
 *
 */
-template <size_t NHiddenStates>
-void calc_observation_probabilities(const DMAT_STR&                                    sentences, 
-                                    const DMAT_STR&                                    labels, 
-                                    const VEC<string, NHiddenStates>&                  common_tags,
-                                    const DVEC_UINT&                                   train_indices,
-                                    const VEC<uint_t, NHiddenStates>&                  tag_unigram_count,
-                                          HASH_MAP<string, VEC<float, NHiddenStates>>& observation_prob)
+template <size_t NStates>
+void calc_observation_probabilities(const DMAT_STR&                              sentences, 
+                                    const DMAT_STR&                              labels, 
+                                    const VEC<string, NStates>&                  common_tags,
+                                    const DVEC_UINT&                             train_indices,
+                                    const VEC<uint_t, NStates>&                  tag_unigram_count,
+                                          HASH_MAP<string, VEC<float, NStates>>& observation_prob)
 {
   // create a map between common tags to int if this map is not initialized before
   if (common_tags_map.size() != common_tags.size())
@@ -235,12 +235,12 @@ void calc_observation_probabilities(const DMAT_STR&                             
 *                                 (row 0: start probabilities, row 1: end probablities)
 *
 */
-template <size_t NHiddenStates>
-void calc_start_end_probabilities(const VEC<uint_t, NHiddenStates>&    starting_tag_counts, 
-                                  const VEC<uint_t, NHiddenStates>&    ending_tag_counts,
-                                  const size_t                         training_set_len,
-                                  const VEC<uint_t, NHiddenStates>&    tag_unigram_count,
-                                        MAT<float, 2u, NHiddenStates>& start_end_prob)
+template <size_t NStates>
+void calc_start_end_probabilities(const VEC<uint_t, NStates>&    starting_tag_counts, 
+                                  const VEC<uint_t, NStates>&    ending_tag_counts,
+                                  const size_t                   training_set_len,
+                                  const VEC<uint_t, NStates>&    tag_unigram_count,
+                                        MAT<float, 2u, NStates>& start_end_prob)
 {
   const float train_len_inverse = 1.0F/(float)(training_set_len);
 
@@ -265,13 +265,13 @@ void calc_start_end_probabilities(const VEC<uint_t, NHiddenStates>&    starting_
 *  \param[out]  predicted_pos_tags      predicted part-of-speech tags for the given data indices using viterbi
 *
 */
-template<size_t NHiddenStates>
-void viterbi_decode(const DMAT_STR&                                    sentences, 
-                    const DVEC_UINT&                                   test_indices, 
-                    const MAT<float, NHiddenStates, NHiddenStates>&    transition_prob,
-                    const HASH_MAP<string, VEC<float, NHiddenStates>>& observation_prob, 
-                    const MAT<float, 2u, NHiddenStates>&               start_end_prob,
-                          DMAT_UINT&                                   predicted_pos_tags)
+template<size_t NStates>
+void viterbi_decode(const DMAT_STR&                              sentences, 
+                    const DVEC_UINT&                             test_indices, 
+                    const MAT<float, NStates, NStates>&          transition_prob,
+                    const HASH_MAP<string, VEC<float, NStates>>& observation_prob, 
+                    const MAT<float, 2u, NStates>&               start_end_prob,
+                          DMAT_UINT&                             predicted_pos_tags)
 {
   predicted_pos_tags = DMAT_UINT(test_indices.size());
 
@@ -283,7 +283,7 @@ void viterbi_decode(const DMAT_STR&                                    sentences
     { 
       predicted_pos_tags[test_idx] = DVEC_UINT(n_obs, 0u);
       
-      vector<vector<ViterbiPathNode>> viterbi_path(n_obs, vector<ViterbiPathNode>(NHiddenStates));
+      vector<vector<ViterbiPathNode>> viterbi_path(n_obs, vector<ViterbiPathNode>(NStates));
 
       float max_obs_state_prob   = -10.0F;
       uint_t prev_best_state     = 0u;
@@ -291,15 +291,15 @@ void viterbi_decode(const DMAT_STR&                                    sentences
       string this_word = this_sentence[0];
 
       // starting state
-      for (size_t tag_index = 0u; tag_index < NHiddenStates; tag_index++)
+      for (size_t tag_index = 0u; tag_index < NStates; tag_index++)
       {
         // unknown word
         to_lower_str(this_word);
         if (observation_prob.find(this_word) != observation_prob.end())
         { 
           viterbi_path[0u][tag_index].prev_state = 0u;
-          viterbi_path[0u][tag_index].max_prob =   fast_log2(start_end_prob[0u][tag_index])               /* P (Y   | start) */
-                                                 + fast_log2(observation_prob.at(this_word)[tag_index]); /* P (X_1 | Y)     */
+          viterbi_path[0u][tag_index].max_prob =   fast_log2f(start_end_prob[0u][tag_index])               /* P (Y   | start) */
+                                                 + fast_log2f(observation_prob.at(this_word)[tag_index]); /* P (X_1 | Y)     */
         }
       }
 
@@ -313,16 +313,16 @@ void viterbi_decode(const DMAT_STR&                                    sentences
         if (observation_prob.find(this_word) == observation_prob.end())
         { continue; }
 
-        for (uint_t cur_state_idx = 0u; cur_state_idx < NHiddenStates; cur_state_idx++)
+        for (uint_t cur_state_idx = 0u; cur_state_idx < NStates; cur_state_idx++)
         {
           max_obs_state_prob  = viterbi_path[word_idx-1u][0].max_prob 
-                                    + fast_log2(transition_prob[0][cur_state_idx]);
+                                    + fast_log2f(transition_prob[0][cur_state_idx]);
           prev_best_state     = 0u;
 
-          for (uint_t prev_state_idx = 1u; prev_state_idx < NHiddenStates; prev_state_idx++)
+          for (uint_t prev_state_idx = 1u; prev_state_idx < NStates; prev_state_idx++)
           {
             float cur_state_prob = viterbi_path[word_idx-1u][prev_state_idx].max_prob 
-                                  + fast_log2(transition_prob[prev_state_idx][cur_state_idx]);
+                                  + fast_log2f(transition_prob[prev_state_idx][cur_state_idx]);
 
             if (max_obs_state_prob < cur_state_prob)
             {
@@ -332,7 +332,7 @@ void viterbi_decode(const DMAT_STR&                                    sentences
           }
 
           viterbi_path[word_idx][cur_state_idx].prev_state = prev_best_state;
-          viterbi_path[word_idx][cur_state_idx].max_prob   = max_obs_state_prob + log2f(observation_prob.at(this_word)[cur_state_idx]);  
+          viterbi_path[word_idx][cur_state_idx].max_prob   = max_obs_state_prob + fast_log2f(observation_prob.at(this_word)[cur_state_idx]);  
         }
       }
 
@@ -340,9 +340,9 @@ void viterbi_decode(const DMAT_STR&                                    sentences
       auto row_iterator = viterbi_path.back().begin();
       float final_best_prob  = -10.0F;
       uint_t best_last_state = 0u; 
-      for (uint_t tag_idx = 0u; tag_idx < NHiddenStates; tag_idx++)
+      for (uint_t tag_idx = 0u; tag_idx < NStates; tag_idx++)
       {
-        (row_iterator + tag_idx)->max_prob += fast_log2(start_end_prob[1u][tag_idx]);
+        (row_iterator + tag_idx)->max_prob += fast_log2f(start_end_prob[1u][tag_idx]);
         if (final_best_prob < (row_iterator + tag_idx)->max_prob)
         {
           final_best_prob = (row_iterator + tag_idx)->max_prob;

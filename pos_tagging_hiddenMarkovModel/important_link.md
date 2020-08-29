@@ -1,0 +1,8 @@
+[RNN, covering BPPT, RTPL, EKF](https://drive.google.com/file/d/1pUUlnJswxF3JveKhcfoopAUTvNxAyHaI/view)  
+[intro to MCMC and Particle Filtering](https://www.cmpe.boun.edu.tr/~cemgil/Courses/cmpe548/cmpe58n-lecture-notes.pdf)  
+[Meta-Learning is all you need](https://medium.com/cracking-the-data-science-interview/meta-learning-is-all-you-need-3bd0bafdf289)  
+[AI-newsletter](http://rohinshah.com/alignment-newsletter/)  
+[Github-stars](github-stars)  
+[Fairness and machine learning](https://fairmlbook.org/)  
+[d2l-ai-practical](http://d2l.ai/chapter_convolutional-neural-networks/conv-layer.html)  
+[youtube-playlists](https://www.youtube.com/playlist?list=PLqYmG7hTraZBiG_XpjnPrSNw-1XQaM_gB)  
