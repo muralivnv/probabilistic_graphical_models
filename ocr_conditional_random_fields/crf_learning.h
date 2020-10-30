@@ -16,21 +16,22 @@ steepest_descent(const crf::Words_t&            train_features,
                        float                    step_size=0.05F, 
                        float                    regularization_factor = 0.001F)
 {
-  (void)regularization_factor;
-  
+  UNUSED(regularization_factor);
+
   crf::MatrixX<float> weight_gradient(node_weights.size() + trans_weights.size(), 1u);
-  weight_gradient.fill(0.0F);
 
   std::vector<float> cost_trend(n_epochs, 0.0F);
   crf::NodeWeights_t  estimated_node_weights = node_weights;
   crf::TransWeights_t estimated_bias_weights = trans_weights;
-  size_t n = train_features.size();
+  size_t n        = train_features.size();
   size_t n_states = node_weights.rows();
 
   for (size_t epoch = 0u; epoch < n_epochs; epoch++)
   {
     weight_gradient.fill(0.0F);
-    for (size_t i = 0u; i < n; i++)
+    
+    #pragma omp parallel for num_threads(2)
+    for (int i = 0u; i < (int)n; i++)
     {
       size_t seq_len = train_features[i].size();
       crf::Graph graph(n_states, seq_len);
@@ -42,7 +43,8 @@ steepest_descent(const crf::Words_t&            train_features,
       backward_algorithm(train_features[i], estimated_node_weights, estimated_bias_weights, graph);
 
       // calculate gradient
-      cost_func_gradient(train_features[i], train_labels[i], estimated_node_weights, estimated_bias_weights, graph, weight_gradient);
+      #pragma omp critical
+      { cost_func_gradient(train_features[i], train_labels[i], estimated_node_weights, estimated_bias_weights, graph, weight_gradient); }
 
       // calculate cost
       cost_trend[epoch] += cost_func(train_features[i], train_labels[i], estimated_node_weights, estimated_bias_weights, graph);
@@ -50,8 +52,8 @@ steepest_descent(const crf::Words_t&            train_features,
     weight_gradient   /= static_cast<float>(n);
     cost_trend[epoch] /= static_cast<float>(n);
 
-    estimated_node_weights.noalias() += step_size*weight_gradient(seq(0, estimated_node_weights.size()-1u), 0u).reshaped<eig::RowMajor>(26, 375);
-    estimated_bias_weights.noalias() += step_size*weight_gradient(seq(estimated_node_weights.size(), last), 0u).reshaped<eig::RowMajor>(26, 26);
+    estimated_node_weights.noalias() -= step_size*weight_gradient(seq(0, estimated_node_weights.size()-1u), 0u).reshaped<eig::RowMajor>(26, 375);
+    estimated_bias_weights.noalias() -= step_size*weight_gradient(seq(estimated_node_weights.size(), last), 0u).reshaped<eig::RowMajor>(26, 26);
     
     std::cout << "epoch: " << epoch << " , cost: " << cost_trend[epoch] << '\n';
   }

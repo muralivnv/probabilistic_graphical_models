@@ -16,12 +16,15 @@
 
 #pragma warning(push, 0)        
 // includes with unfixable warnings
-#include <Eigen/Eigen/Core>
+#include <Eigen/Core>
 #pragma warning(pop)
+
+#include <LBFGS.h>
 
 #define CHAR_IMG_WIDTH  (15u)
 #define CHAR_IMG_HEIGHT (25u)
 #define N_STATES        (26u)
+#define UNUSED(var)     ((void)(var))
 
 using std::vector, std::string, std::size_t, std::array, std::fstream, std::tuple, std::tie;
 using std::for_each, std::copy, std::transform;
@@ -29,6 +32,7 @@ using Eigen::all, Eigen::seq, Eigen::last;
 
 namespace eig    = Eigen;
 namespace chrono = std::chrono;
+namespace lbfgspp = LBFGSpp;
 using namespace std::string_literals;
 
 #define ITER(X) std::begin(X), std::end(X)
@@ -71,6 +75,9 @@ struct Graph{
     potential_status = std::vector<crf::StatusID>(seq_len, crf::NOT_CALCULATED);
   }
 };
+
+using Derived = Eigen::Block<const Eigen::Matrix<float,-1,1,0,-1,1>,-1,1,false>;
+using Reshaped_t = eig::Reshaped<Derived, -1, -1, 1>;
 
 } // namespace {crf}
 

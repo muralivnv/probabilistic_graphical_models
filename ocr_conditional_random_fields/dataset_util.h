@@ -113,7 +113,7 @@ void write_to_file(std::string_view           filename,
     {
       for(size_t j = 0u; j < shape[1]; j++)
       {
-        out_file << *(container.data() + (i*j + j)) << ' ';
+        out_file << *(container.data() + (i*shape[1] + j)) << ' ';
       }
       out_file << '\n';
     }

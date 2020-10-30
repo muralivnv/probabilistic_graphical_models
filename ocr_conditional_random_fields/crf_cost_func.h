@@ -10,8 +10,8 @@ float log_conditional_prob(const crf::Word_t&          feature_seq,
                            const crf::TransWeights_t&  transition_weights,
                            const crf::Graph&           graph)
 {
-  (void)node_weights;
-  
+  UNUSED(node_weights);
+
   float cost = 0.0F;
 
   // for the first node at time t = 0u
@@ -32,7 +32,7 @@ float log_conditional_prob(const crf::Word_t&          feature_seq,
 
 // TODO: remove unnecessary calculations for PY2Y1X
 // TODO: check calculations to make sure everything is correct or not
-// TODO: check why cost is keep going up
+// TODO: handle negative weight situations
 void log_conditional_prime(const crf::Word_t&          feature_seq,
                            const vector<size_t>&       label_seq,
                            const crf::NodeWeights_t&   node_weights, 
@@ -51,10 +51,21 @@ void log_conditional_prime(const crf::Word_t&          feature_seq,
     size_t label = label_seq[t];
 
     float normalized_PY1X = graph.unnormalized_PY1X(label, t)/graph.unnormalized_PY1X(all, t).sum();
-    float scaling = normalized_PY1X - 1.0F;
+    auto scaling = normalized_PY1X;
 
-    // Fill gradient
-    gradient_out(seq(label*feature_len, (label+1)*feature_len-1u), 0).noalias() += scaling*feature_seq[t];
+    for (size_t state = 0u; state < n_states; state++)
+    {
+      size_t index_start =  state*feature_len;
+      size_t index_end   =  (state+1)*feature_len-1u;
+
+      float this_state_scaling = scaling;
+      if (state == label)
+      { this_state_scaling -= 1.0F; }
+
+      // Fill gradient
+      gradient_out(seq(index_start, index_end), 0).noalias() += this_state_scaling*feature_seq[t];
+    }
+
   }
 
   // transition gradient
@@ -66,13 +77,13 @@ void log_conditional_prime(const crf::Word_t&          feature_seq,
     float numerator = graph.WX(label_prev, t-1u);
     numerator      += graph.WX(label_now, t);
     numerator      += transition_weights(label_prev, label_now);
+    numerator       = std::expf(numerator);
 
     if (t > 1u) // add forward pass result
-    { numerator += std::logf(graph.log_alpha(label_prev, t-2u)); }
+    { numerator *= graph.log_alpha(label_prev, t-2u); }
 
     if (t < seq_len - 1u) // add backward pass result
-    { numerator += std::logf(graph.log_beta(label_now, t+1u)); }
-    numerator = std::expf(numerator);
+    { numerator *= graph.log_beta(label_now, t+1u); }
 
     float denominator = 0.0F;
     for (size_t state_i = 0u; state_i < n_states; state_i++)
@@ -80,19 +91,34 @@ void log_conditional_prime(const crf::Word_t&          feature_seq,
       float state_i_potential = graph.WX(state_i, t-1u);
       for (size_t state_j = 0u; state_j < n_states; state_j++)
       {
+        if ((state_i == label_prev) && (state_j == label_now))
+        { denominator += numerator; continue; }
+
         float coeff = graph.WX(state_j, t);
         coeff += state_i_potential;
+        coeff += transition_weights(state_i, state_j);
+        coeff  = std::expf(coeff);
 
         if (t > 1u)
-        { coeff += std::logf(graph.log_alpha(state_i, t-2u)); }
+        { coeff *= graph.log_alpha(state_i, t-2u); }
         if (t < seq_len-1u)
-        { coeff += std::logf(graph.log_beta(state_j, t+1u)); }
+        { coeff *= graph.log_beta(state_j, t+1u); }
 
-        denominator += std::expf(coeff);
+        denominator += coeff;
       }
     }
 
-    gradient_out(trans_weight_start + (label_prev*n_states) + label_now) += ((numerator / denominator) - 1.0F);
+    float scaling = (numerator / denominator);
+    for (int state_i = 0u; state_i < (int)n_states; state_i++)
+    {
+      for (size_t state_j = 0u; state_j < n_states; state_j++)
+      {
+        float coeff = scaling;
+        if (state_i == label_prev && state_j == label_now)
+        { coeff -= 1.0F;}
+        gradient_out(trans_weight_start + (state_i*n_states) + state_j) += coeff;
+      }
+    }
   }
 }
 
