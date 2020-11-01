@@ -101,6 +101,25 @@ std::unordered_map<char, size_t> letters2int()
 }
 
 
+void read_data(const vector<std::string>& files, 
+                  crf::Words_t&           images,
+                  vector<vector<size_t>>& labels)
+{
+  const auto letter_map = letters2int();
+
+  #pragma omp parallel for num_threads(2)
+  for (int i = 0u; i < files.size(); i++)
+  {
+    std::string label_str;
+    tie (label_str, images[i]) = read_png_data<15, 25>(files[i]);
+    
+    labels[i] = vector<size_t>(label_str.size());
+    for (int j = 0u; j < label_str.size(); j++)
+    { labels[i][j] = letter_map.at(label_str[j]); }
+  }
+}
+
+
 template<typename Container_t>
 void write_to_file(std::string_view           filename, 
                    const Container_t&         container,
@@ -121,4 +140,5 @@ void write_to_file(std::string_view           filename,
   out_file.close();
 
 }
+
 #endif
